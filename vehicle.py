@@ -1,6 +1,5 @@
 #vehicle.py
 #stores the vehicle class and related functionality
-import warnings
 
 #schedule class, stores the list of nodes the vehicle is trying to reach, and the edge needed to reach each node
 class Schedule:
@@ -39,8 +38,10 @@ class Schedule:
 
 
 #base vehicle class
-#class Vehicle:
-#    def __init__(self,schedule):
-#
+class Vehicle:
+    def __init__(self,schedule):
+        pass
+        
+
 
 
