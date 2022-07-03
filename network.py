@@ -175,6 +175,21 @@ class Network:
         
         return distance_to_nodes #return the distance to all the nodes
 
+    #find the distance to travel to all nodes from all nodes
+    def find_distance_to_all(self):
+        num_nodes = len(self.node_names)
+        distance_arrays = [] #list to store distance arrays from a particular node
+        #generate the distance arrays from each node
+        for i in range(num_nodes):
+            distance_arrays.append(self.find_distance_dijistraka(self.node_names[i]))
+        #and merge them into a numpy array
+        return np.stack(distance_arrays)
+
+
+
+
+
+
     #testing functionality
     def test_nodes(self):
         for i  in range(len(self.nodes)):

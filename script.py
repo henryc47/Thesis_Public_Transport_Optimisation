@@ -11,7 +11,8 @@ def setup_basic_simulation():
     #now perform some tests
     #basic_network.test_edges()
     #basic_network.test_nodes()
-    basic_network.test_dijistraka('Hornsby')
-    basic_network.test_dijistraka('Gordon')
-    basic_network.test_dijistraka('Chatswood')
+    #basic_network.test_dijistraka('Hornsby')
+    #basic_network.test_dijistraka('Gordon')
+    #basic_network.test_dijistraka('Chatswood')
+    print(basic_network.find_distance_to_all())
 
