@@ -9,6 +9,9 @@ def setup_basic_simulation():
     edges_basic_path = 'edges_basic.csv'
     basic_network = network.Network(nodes_basic_path,edges_basic_path)
     #now perform some tests
-    basic_network.test_edges()
-    basic_network.test_nodes()
+    #basic_network.test_edges()
+    #basic_network.test_nodes()
+    basic_network.test_dijistraka('Hornsby')
+    basic_network.test_dijistraka('Gordon')
+    basic_network.test_dijistraka('Chatswood')
 
