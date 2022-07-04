@@ -205,10 +205,43 @@ class Network:
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
             print(self.node_names[i], ' time ',best_distance_to_nodes[i])
-        
-
     
 
+
+#assign trips between origin destination pairs using the gravity model
+#starts/stops are number of passengers starting/stopping at particular nodes (1D Numpy array)
+#distances is amount of time taken (in ideal world) to travel between each pair of nodes (2D Numpy array)
+#length of all these arrays MUST be equal
+#distance exponent is how much cost scales with distance
+#flat distance is default amount of distance applied on top to all trips
+#iterations is how many iterations to converge
+def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,iterations):
+    distances = (distances+flat_distance)**distance_exponent #calculate distance after transforms
+    num_nodes = len(starts)
+    destination_importance_factors = np.ones(num_nodes)#correction factor used to ensure convergence of number of trips to a node with recorded number of stops at that node
+    for i in range(iterations):
+        list_trips = [] #list to store the number of trips pending conversion to a numpy array
+        for j in range(num_nodes):#go through all the starting nodes
+            this_node_starts = starts[j]#record the number of trips starting at a node
+            trip_importance = np.zeros(num_nodes)#importance of trips to each node from this node
+            for k in range(num_nodes):#go through each destination from all nodes
+                if k==j:#don't evaluate number of trips from a node to itself
+                    continue
+                else:
+                    distance_between = (distances[k,j]+distances[j,k]) #use the round-trip distance, as most passengers intend to return to their origin so this is what determines expected cost of the trip
+                    trip_importance[k] = ((destination_importance_factors[k]*stops[k])/distance_between)
+            
+            num_trips = (trip_importance/np.sum(trip_importance))*this_node_starts #calculate the number of trips from this node to all other nodes
+            list_trips.append(num_trips)
+        
+        calc_trips = np.stack(list_trips)#merge the number of trips from each node to each destination into a numpy array 
+
+    return calc_trips
+
+
+
+
+            
 
 
 

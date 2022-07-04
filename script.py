@@ -3,6 +3,7 @@
 
 import network as network
 import time
+import numpy as np
 
 def setup_basic_simulation():
     #relative file paths to node/edge documents
@@ -21,8 +22,18 @@ def setup_basic_simulation():
     #basic_network.test_dijistraka('Hornsby')
     #basic_network.test_dijistraka('Gordon')
     #basic_network.test_dijistraka('Chatswood')
-    time1 = time.time()
-    print(basic_network.find_distance_to_all())
-    time2 = time.time()
+    #time1 = time.time()
+    #print(basic_network.find_distance_to_all())
+    #time2 = time.time()
     print("finding node distances ", time2-time1, " seconds")
-
+    
+    
+def test_basic_gravity_model():
+    starts = np.array((10,20,40,10))
+    stops =  np.array((10,20,40,10))
+    distances = np.array(([0,3,5,7],[3,0,2,4],[5,2,0,2],[7,4,2,0]))
+    time1 = time.time()
+    trips = network.gravity_assignment(starts,stops,distances,2,0,1)
+    time2 = time.time()
+    print(trips)
+    print("evaluating gravity model ", time2-time1, " seconds")
