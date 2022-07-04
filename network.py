@@ -190,7 +190,7 @@ class Network:
     #create a matrix of travel demand between each node using the gravity model
     def create_origin_destination_matrix(self):
         num_passengers = np.array(self.node_passengers)
-        self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5,100) 
+        self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5) 
         return self.origin_destination_trips
 
 
@@ -221,7 +221,7 @@ class Network:
 #flat distance is default amount of distance applied on top to all trips
 #iterations is how many iterations to converge
 #as yet unsure how well this handles 
-def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,iterations):
+def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,verbose=True,required_accuracy=0.001,max_iterations=100):
     distances = (distances+flat_distance)**distance_exponent #calculate distance after transforms
     num_nodes = len(starts)
     destination_importance_factors = np.ones(num_nodes)#correction factor used to ensure convergence of number of trips to a node with recorded number of stops at that node
@@ -241,25 +241,30 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,it
         list_trips.append(num_trips)
         
     calc_trips = np.stack(list_trips)#merge the number of trips from each node to each destination into a numpy array
-    for i in range(iterations):
-        #print('i = ',i)
-        #print('calc trips ',calc_trips)
+    iter = 0
+    while True:
         calc_stops = np.sum(calc_trips,0)
-        #print('calc stops ',calc_stops)
         calc_starts = np.sum(calc_trips,1)
-        #print('calc starts ',calc_starts)
         stop_correction_factor = stops/calc_stops
-        #print('stop correction factors ',stop_correction_factor)
+        start_correction_factor = starts/calc_starts
+        abs_start_error = np.abs(start_correction_factor-1)
+        abs_stop_error = np.abs(stop_correction_factor-1)
+        if (max(abs_stop_error)<required_accuracy) and (max(abs_start_error)<required_accuracy):
+            if verbose:
+                print("desired accuracy achieved after ", iter, " iterations")
+            break
+        elif iter>=max_iterations:
+            if verbose:
+                print("failed to converge after ",max_iterations," iterations")
+            break
+        else:
+            iter = iter+1    
         #now apply the stop correction factor to traffic
         for j in range(num_nodes):#go through starting node
             for k in range(num_nodes):#go through destination node
                 calc_trips[j,k] = calc_trips[j,k]*stop_correction_factor[k] #multiply the number of trips going to each destination node by the stop correction factor of that destination
-        #print('after stop calibration')
-        #print('calc trips ',calc_trips)
         calc_stops = np.sum(calc_trips,0)
-        #print('calc stops ',calc_stops)
         calc_starts = np.sum(calc_trips,1)
-        #print('calc starts ',calc_starts)
         start_correction_factor = starts/calc_starts
         #print('start correction factors ',start_correction_factor)
         #now apply the start correction factor to traffic
@@ -267,24 +272,25 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,it
             for k in range(num_nodes):#go through destination node
                 calc_trips[j,k] = calc_trips[j,k]*start_correction_factor[j]  #multiply the number of trips from each origin by the start correction factor of that origin
 
+        
         #print('after start calibration')
 
-
-    print('at the end') 
-    calc_stops = np.sum(calc_trips,0)
-    print('calc stops ',calc_stops)
-    stop_error = (calc_stops/stops)
-    print('stop correctness ',stop_error)
-    calc_starts = np.sum(calc_trips,1)
-    print('calc starts ',calc_starts)
-    start_error = calc_starts/starts
-    print('start correctness ',start_error)
-    print('biggest errors rates are')
-    abs_start_error = np.abs(start_error-1)
-    abs_stop_error = np.abs(stop_error-1)
-    print('for start, max error ', np.max(abs_start_error),' mean error ',np.mean(abs_start_error))
-    print('for stop, max error ', np.max(abs_stop_error),' mean error ',np.mean(abs_stop_error))
-    print('end testing')
+    if verbose:
+        print('at the end') 
+        calc_stops = np.sum(calc_trips,0)
+        print('calc stops ',calc_stops)
+        stop_error = (calc_stops/stops)
+        print('stop correctness ',stop_error)
+        calc_starts = np.sum(calc_trips,1)
+        print('calc starts ',calc_starts)
+        start_error = calc_starts/starts
+        print('start correctness ',start_error)
+        print('biggest errors rates are')
+        abs_start_error = np.abs(start_error-1)
+        abs_stop_error = np.abs(stop_error-1)
+        print('for start, max error ', np.max(abs_start_error),' mean error ',np.mean(abs_start_error))
+        print('for stop, max error ', np.max(abs_stop_error),' mean error ',np.mean(abs_stop_error))
+        print('end testing')
     return calc_trips
 
 
