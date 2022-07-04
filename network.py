@@ -91,8 +91,8 @@ class Network:
         self.nodes = [] #list of nodes
         self.edge_names = [] #list of generated edge names
         #extract the raw data
-        nodes_csv = pd.read_csv(nodes_file_path)
-        edges_csv = pd.read_csv(edges_file_path)
+        nodes_csv = pd.read_csv(nodes_file_path,thousands=r',')
+        edges_csv = pd.read_csv(edges_file_path,thousands=r',')
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
         self.node_passengers = nodes_csv["Daily_Passengers"].to_list()
@@ -183,10 +183,15 @@ class Network:
         for i in range(num_nodes):
             distance_arrays.append(self.find_distance_dijistraka(self.node_names[i]))
         #and merge them into a numpy array
-        return np.stack(distance_arrays)
+        
+        self.distance_to_all = np.stack(distance_arrays)
+        return self.distance_to_all
 
-
-
+    #create a matrix of travel demand between each node using the gravity model
+    def create_origin_destination_matrix(self):
+        num_passengers = np.array(self.node_passengers)
+        self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5,100) 
+        return self.origin_destination_trips
 
 
 
@@ -215,27 +220,71 @@ class Network:
 #distance exponent is how much cost scales with distance
 #flat distance is default amount of distance applied on top to all trips
 #iterations is how many iterations to converge
+#as yet unsure how well this handles 
 def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,iterations):
     distances = (distances+flat_distance)**distance_exponent #calculate distance after transforms
     num_nodes = len(starts)
     destination_importance_factors = np.ones(num_nodes)#correction factor used to ensure convergence of number of trips to a node with recorded number of stops at that node
-    for i in range(iterations):
-        list_trips = [] #list to store the number of trips pending conversion to a numpy array
-        for j in range(num_nodes):#go through all the starting nodes
-            this_node_starts = starts[j]#record the number of trips starting at a node
-            trip_importance = np.zeros(num_nodes)#importance of trips to each node from this node
-            for k in range(num_nodes):#go through each destination from all nodes
-                if k==j:#don't evaluate number of trips from a node to itself
-                    continue
-                else:
-                    distance_between = (distances[k,j]+distances[j,k]) #use the round-trip distance, as most passengers intend to return to their origin so this is what determines expected cost of the trip
-                    trip_importance[k] = ((destination_importance_factors[k]*stops[k])/distance_between)
-            
-            num_trips = (trip_importance/np.sum(trip_importance))*this_node_starts #calculate the number of trips from this node to all other nodes
-            list_trips.append(num_trips)
-        
-        calc_trips = np.stack(list_trips)#merge the number of trips from each node to each destination into a numpy array 
+    list_trips = [] #list to store the number of trips pending conversion to a numpy array
+    for j in range(num_nodes):#go through all the starting nodes
+        this_node_starts = starts[j]#record the number of trips starting at a node
+        trip_importance = np.zeros(num_nodes)#importance of trips to each node from this node
+        for k in range(num_nodes):#go through each destination from all nodes
+            if k==j:#don't evaluate number of trips from a node to itself
+                continue
+            else:
+                distance_between = (distances[k,j]+distances[j,k]) #use the round-trip distance, as most passengers intend to return to their origin so this is what determines expected cost of the trip
 
+                trip_importance[k] = ((destination_importance_factors[k]*stops[k])/distance_between)
+        
+        num_trips = (trip_importance/np.sum(trip_importance))*this_node_starts #calculate the number of trips from this node to all other nodes
+        list_trips.append(num_trips)
+        
+    calc_trips = np.stack(list_trips)#merge the number of trips from each node to each destination into a numpy array
+    for i in range(iterations):
+        #print('i = ',i)
+        #print('calc trips ',calc_trips)
+        calc_stops = np.sum(calc_trips,0)
+        #print('calc stops ',calc_stops)
+        calc_starts = np.sum(calc_trips,1)
+        #print('calc starts ',calc_starts)
+        stop_correction_factor = stops/calc_stops
+        #print('stop correction factors ',stop_correction_factor)
+        #now apply the stop correction factor to traffic
+        for j in range(num_nodes):#go through starting node
+            for k in range(num_nodes):#go through destination node
+                calc_trips[j,k] = calc_trips[j,k]*stop_correction_factor[k] #multiply the number of trips going to each destination node by the stop correction factor of that destination
+        #print('after stop calibration')
+        #print('calc trips ',calc_trips)
+        calc_stops = np.sum(calc_trips,0)
+        #print('calc stops ',calc_stops)
+        calc_starts = np.sum(calc_trips,1)
+        #print('calc starts ',calc_starts)
+        start_correction_factor = starts/calc_starts
+        #print('start correction factors ',start_correction_factor)
+        #now apply the start correction factor to traffic
+        for j in range(num_nodes):#go through starting node
+            for k in range(num_nodes):#go through destination node
+                calc_trips[j,k] = calc_trips[j,k]*start_correction_factor[j]  #multiply the number of trips from each origin by the start correction factor of that origin
+
+        #print('after start calibration')
+
+
+    print('at the end') 
+    calc_stops = np.sum(calc_trips,0)
+    print('calc stops ',calc_stops)
+    stop_error = (calc_stops/stops)
+    print('stop correctness ',stop_error)
+    calc_starts = np.sum(calc_trips,1)
+    print('calc starts ',calc_starts)
+    start_error = calc_starts/starts
+    print('start correctness ',start_error)
+    print('biggest errors rates are')
+    abs_start_error = np.abs(start_error-1)
+    abs_stop_error = np.abs(stop_error-1)
+    print('for start, max error ', np.max(abs_start_error),' mean error ',np.mean(abs_start_error))
+    print('for stop, max error ', np.max(abs_stop_error),' mean error ',np.mean(abs_stop_error))
+    print('end testing')
     return calc_trips
 
 
