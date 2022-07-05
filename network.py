@@ -193,6 +193,50 @@ class Network:
         self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5) 
         return self.origin_destination_trips
 
+    #provide a breakdown of where passengers starting at a particular node are going
+    def test_origin_destination_matrix(self,start_node_name):
+        #try and find the starting node in the list of all nodes
+        try:
+            start_index = self.node_names.index(start_node_name)
+        except ValueError:
+            #handle case where starting name not in list of names
+            warnings.warn('start_node_name  ', start_node_name, 'is not in the list of node names in this network')
+            return False #return false to indicate error
+        #if there was not an error, continue
+        num_nodes = len(self.node_names)
+        trips_from_start = self.origin_destination_trips[start_index:start_index+1,:][0]
+        print(trips_from_start)
+        num_trips = np.sum(trips_from_start)
+        percent_trips = trips_from_start/num_trips
+        print('from ',start_node_name,' ',num_trips, ' passengers travel')
+        for i in range(num_nodes):
+            with np.printoptions(precision=2,suppress=True):
+                print(' to ',self.node_names[i],' ', trips_from_start[i], ' passengers which is', percent_trips[i]*100 ,' %')
+    
+    def test_origin_destination_matrix_all(self):
+        num_nodes = len(self.node_names)
+        stops = np.sum(self.origin_destination_trips,0)
+        total_stops = np.sum(stops)
+        percent_trips = stops/total_stops
+        print('across all nodes, passengers travel')
+        for i in range(num_nodes):
+            with np.printoptions(precision=2,suppress=True):
+                print(' to ',self.node_names[i],' ', stops[i], ' passengers which is', percent_trips[i]*100 ,' %')
+            #print(' to ',self.node_names[i],' ', f"{stops[i]:.2f}", ' passengers which is', f"{percent_trips[i]*100:.2f}" ,' %')
+        for i in range(num_nodes):
+            self.test_origin_destination_matrix(self.node_names[i])
+
+
+             
+
+
+
+
+
+
+
+
+
 
 
     #testing functionality

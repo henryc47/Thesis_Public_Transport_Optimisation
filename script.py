@@ -33,6 +33,7 @@ def setup_basic_simulation():
     np.set_printoptions(precision=3,suppress=True)
     print('trip origin and destination matrix ',origin_destination_trips)
     print("assigning trip origin and destinations ", time2-time1, " seconds")
+    basic_network.test_origin_destination_matrix_all()        
 
     
 def test_basic_gravity_model(iterations):
