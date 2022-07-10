@@ -17,8 +17,8 @@ def setup_basic_simulation():
     time2 = time.time()
     print("setting up network objects ", time2-time1, " seconds")
     #now perform some tests
-    #basic_network.test_edges()
-    #basic_network.test_nodes()
+    basic_network.test_edges()
+    basic_network.test_nodes()
     #basic_network.test_dijistraka('Hornsby')
     #basic_network.test_dijistraka('Gordon')
     #basic_network.test_dijistraka('Chatswood')
@@ -33,7 +33,7 @@ def setup_basic_simulation():
     np.set_printoptions(precision=3,suppress=True)
     print('trip origin and destination matrix ',origin_destination_trips)
     print("assigning trip origin and destinations ", time2-time1, " seconds")
-    basic_network.test_origin_destination_matrix_all()        
+    #basic_network.test_origin_destination_matrix_all()        
 
     
 def test_basic_gravity_model(iterations):

@@ -31,12 +31,14 @@ class Edge:
 #node class, represents a location between which passengers can travel
 #the node stores the names of all the nodes which start at it
 class Node:
-    def __init__(self,name):
+    def __init__(self,name,coordinates):
         self.name = name
         self.edge_names = []#list of all edges starting at this node
         self.edge_destinations = []#and the destination of each node
         self.edge_times = []#matching list of travel time of each respective edge
-        
+        (self.latitude,self.longitude) = extract_coordinates(coordinates)
+
+
     
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -81,7 +83,7 @@ class Node:
         print('from node ',self.name, ' edges are')
         for i in range(len(self.edge_names)):
             print(self.edge_names[i], ' goes too ',self.edge_destinations[i],' taking ',self.edge_times[i])
-
+        print('node latitude is ',self.latitude, ' longitude is ',self.longitude)
 
 class Network:
     #initalise the physical network
@@ -96,10 +98,12 @@ class Network:
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
         self.node_passengers = nodes_csv["Daily_Passengers"].to_list()
+        node_positions = nodes_csv["Location"].to_list() 
         #and let's create the nodes
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
-            self.nodes.append(Node(self.node_names[i]))
+            self.nodes.append(Node(self.node_names[i],node_positions[i]))
+
         #extract edge data
         self.edge_starts = edges_csv["Start"].to_list()
         self.edge_ends = edges_csv["End"].to_list()
@@ -338,9 +342,25 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,ve
     return calc_trips
 
 
-
-
-            
+#extract latitude and longitude from a string of coordinates (in the format provided by google maps)
+def extract_coordinates(coordinates):
+    #extract the latitude and longitude strings
+    latitude = ''
+    longitude = ''
+    extracting_longitude = False
+    i = 0
+    while i < len(coordinates):
+        if coordinates[i] == ',':
+            extracting_longitude = True
+            i = i + 2
+        else:
+            if extracting_longitude:
+                longitude += coordinates[i]
+            else:
+                latitude += coordinates[i]
+            i = i + 1
+        
+    return float(latitude),float(longitude)
 
 
 
