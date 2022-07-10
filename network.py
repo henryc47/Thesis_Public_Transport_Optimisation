@@ -38,7 +38,6 @@ class Node:
         self.edge_times = []#matching list of travel time of each respective edge
         (self.latitude,self.longitude) = extract_coordinates(coordinates)
 
-
     
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -87,6 +86,7 @@ class Node:
 
 class Network:
     #initalise the physical network
+    #note, this assumes that passengers are evenly distributed through the day
     def __init__(self,nodes_file_path,edges_file_path):
         #where we will store edges and nodes
         self.edges = [] #list of edges 
@@ -97,7 +97,8 @@ class Network:
         edges_csv = pd.read_csv(edges_file_path,thousands=r',')
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
-        self.node_passengers = nodes_csv["Daily_Passengers"].to_list()
+        num_hours = 12#
+        self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour
         node_positions = nodes_csv["Location"].to_list() 
         #and let's create the nodes
         num_nodes = len(self.node_names)
@@ -269,7 +270,7 @@ class Network:
 #flat distance is default amount of distance applied on top to all trips
 #iterations is how many iterations to converge
 #as yet unsure how well this handles 
-def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,verbose=True,required_accuracy=0.001,max_iterations=100):
+def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,verbose=True,required_accuracy=0.001,max_iterations=100,super_verbose=False):
     distances = (distances+flat_distance)**distance_exponent #calculate distance after transforms
     num_nodes = len(starts)
     destination_importance_factors = np.ones(num_nodes)#correction factor used to ensure convergence of number of trips to a node with recorded number of stops at that node
@@ -323,7 +324,7 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,ve
         
         #print('after start calibration')
 
-    if verbose:
+    if super_verbose:
         print('at the end') 
         calc_stops = np.sum(calc_trips,0)
         print('calc stops ',calc_stops)
