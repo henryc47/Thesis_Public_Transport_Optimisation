@@ -4,6 +4,7 @@
 import pandas as pd #for importing data from csv files
 import warnings #for warnings
 import numpy as np #for large scale mathematical operations
+import time as time #for benchmarking
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -87,8 +88,9 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_file_path,edges_file_path):
+    def __init__(self,nodes_file_path,edges_file_path,verbose=True):
         #where we will store edges and nodes
+        time1 = time.time()
         self.edges = [] #list of edges 
         self.nodes = [] #list of nodes
         self.edge_names = [] #list of generated edge names
@@ -97,8 +99,6 @@ class Network:
         edges_csv = pd.read_csv(edges_file_path,thousands=r',')
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
-        num_hours = 12#
-        self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour
         node_positions = nodes_csv["Location"].to_list() 
         #and let's create the nodes
         num_nodes = len(self.node_names)
@@ -120,6 +120,24 @@ class Network:
             else:
                 #if input edge is one way
                 self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i])#UP
+
+        #allocate passengers 
+        #this will be replaced by a more sophisticated method of passenger allocation later
+        num_hours = 12#
+        self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour for each station
+        time2 = time.time()
+        if verbose:
+            print('time to extract and process network data - ', time2-time1, ' seconds')
+        time1 = time.time()
+        self.find_distance_to_all()#find the shortest distance between all edges on the network
+        time2 = time.time()
+        if verbose:
+            print('time to find ideal travel time between all nodes - ', time2-time1, ' seconds')
+        time1 = time.time()
+        self.create_origin_destination_matrix()#create the origin destination matrix for the network
+        time2 = time.time()
+        if verbose:
+            print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
 
 
     #add an edge between specified start and end node            

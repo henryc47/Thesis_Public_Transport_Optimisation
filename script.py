@@ -35,7 +35,31 @@ def setup_basic_simulation():
     print("assigning trip origin and destinations ", time2-time1, " seconds")
     #basic_network.test_origin_destination_matrix_all()        
 
-    
+def setup_basic_sim():
+    time1 = time.time()
+    nodes_basic_path = 'nodes_basic.csv'
+    edges_basic_path = 'edges_basic.csv'
+    time2 = time.time()
+    print("loading network data from csv ", time2-time1, " seconds")
+    basic_network = network.Network(nodes_basic_path,edges_basic_path)
+
+def setup_medium_sim(test=True):
+    time1 = time.time()
+    nodes_basic_path = 'nodes_medium.csv'
+    edges_basic_path = 'edges_medium.csv'
+    time2 = time.time()
+    print("loading network data from csv ", time2-time1, " seconds")
+    basic_network = network.Network(nodes_basic_path,edges_basic_path)
+    if test:
+        #basic_network.test_edges()
+        #basic_network.test_nodes()
+        basic_network.test_dijistraka('Central')
+        basic_network.test_origin_destination_matrix('Chatswood')
+        basic_network.test_origin_destination_matrix('Newtown')
+        basic_network.test_origin_destination_matrix('Central')
+        basic_network.test_origin_destination_matrix('Mount Colah')
+        basic_network.test_origin_destination_matrix('Penrith')
+
 def test_basic_gravity_model(iterations):
     starts = np.array((10,20,40,10))
     stops =  np.array((10,20,40,10))
