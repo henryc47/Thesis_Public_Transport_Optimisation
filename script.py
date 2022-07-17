@@ -39,9 +39,12 @@ def setup_basic_sim():
     time1 = time.time()
     nodes_basic_path = 'nodes_basic.csv'
     edges_basic_path = 'edges_basic.csv'
+    schedule_basic_path = 'schedule_basic.csv'
     time2 = time.time()
     print("loading network data from csv ", time2-time1, " seconds")
     basic_network = network.Network(nodes_basic_path,edges_basic_path)
+    basic_network.add_schedules(schedule_basic_path)
+    
 
 def setup_medium_sim(test=True):
     time1 = time.time()

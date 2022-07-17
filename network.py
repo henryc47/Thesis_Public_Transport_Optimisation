@@ -5,6 +5,7 @@ import pandas as pd #for importing data from csv files
 import warnings #for warnings
 import numpy as np #for large scale mathematical operations
 import time as time #for benchmarking
+import schedule as schedule
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -85,6 +86,29 @@ class Node:
             print(self.edge_names[i], ' goes too ',self.edge_destinations[i],' taking ',self.edge_times[i])
         print('node latitude is ',self.latitude, ' longitude is ',self.longitude)
 
+#scheduler class, responsible for creating vehicles and assigning them to routes
+class Scheduler:
+    #initalise the scheduler
+    def __init__(self,schedule_file_path):
+        schedule_csv = pd.read_csv(schedule_file_path)
+        self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
+        self.schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
+        self.schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
+        schedule_schedules = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
+
+
+    
+            
+
+                
+
+
+
+
+
+
+
+#network class, represents the overall structure of the transport network
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
@@ -121,6 +145,8 @@ class Network:
                 #if input edge is one way
                 self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i])#UP
 
+
+
         #allocate passengers 
         #this will be replaced by a more sophisticated method of passenger allocation later
         num_hours = 12#
@@ -138,6 +164,24 @@ class Network:
         time2 = time.time()
         if verbose:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
+
+
+    #create the scheduler and schedule 
+    def create_scheduler(self,schedule_file_path):
+        schedule_csv = pd.read_csv(schedule_file_path)
+        schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
+        schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
+        schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
+        schedule_schedules = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
+        #final_schedule = schedule.Schedule(name)
+        
+        #now create a list of destinations and edges from the list of nodes
+
+    #create a schedule object from a name and a text string
+    def create_schedule(self,name,schedule):
+        pass
+
+
 
 
     #add an edge between specified start and end node            
@@ -248,18 +292,6 @@ class Network:
             #print(' to ',self.node_names[i],' ', f"{stops[i]:.2f}", ' passengers which is', f"{percent_trips[i]*100:.2f}" ,' %')
         for i in range(num_nodes):
             self.test_origin_destination_matrix(self.node_names[i])
-
-
-             
-
-
-
-
-
-
-
-
-
 
 
     #testing functionality
@@ -381,8 +413,18 @@ def extract_coordinates(coordinates):
         
     return float(latitude),float(longitude)
 
-
-
+#extract a list of nodes in a schedule from a text string
+def extract_schedule_list_txt(schedule_string):
+    new_node = []
+    nodes = []
+    for letter in schedule_string:
+        if letter==',': #move onto the next node when the delimiter is reached
+            nodes.append("".join(new_node))#append the node name to the list of nodes
+            new_node = [] #reset the node
+        else:
+            new_node.append(letter) #append the letter to the node name
+    
+    return nodes
 
     
 
