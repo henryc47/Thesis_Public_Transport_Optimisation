@@ -1,5 +1,6 @@
 #schedule.py
 #schedule class, stores the list of nodes the vehicle is trying to reach, and the edge needed to reach each node
+import numpy as np
 
 class Schedule:
     
@@ -37,4 +38,21 @@ class Schedule:
     
     def provide_name(self,name):
         return self.name
+    
+    def add_schedule_times(self,arrival_times):
+        self.schedule_times = arrival_times #this is a numpy array
+
+    #offset the schedule times by the current time to obtain time the time the vehicle will reach each node
+    def offset_schedule_times(self,current_time):
+        self.schedule_times = self.schedule_times + current_time
+    
+    #provide information about the schedule, namely the list of nodes and edges traversed, and the time when nodes will be reached
+    def test_schedule(self):
+        print('SCHEDULE ', self.name)
+        num_nodes = len(self.nodes)
+        for i in range(num_nodes):
+            if i>0:
+                print('NODE ', self.nodes[i].name, ' TIME ', self.schedule_times[i], ' EDGE ', self.edges[i-1].name) #note, print the edge to reach the displayed node
+            else:
+                print('NODE ', self.nodes[i].name, ' TIME ', self.schedule_times[i]) #for starting node, there is no edge to reach the displayed node 
 

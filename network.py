@@ -86,28 +86,6 @@ class Node:
             print(self.edge_names[i], ' goes too ',self.edge_destinations[i],' taking ',self.edge_times[i])
         print('node latitude is ',self.latitude, ' longitude is ',self.longitude)
 
-#scheduler class, responsible for creating vehicles and assigning them to routes
-class Scheduler:
-    #initalise the scheduler
-    def __init__(self,schedule_file_path):
-        schedule_csv = pd.read_csv(schedule_file_path)
-        self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
-        self.schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
-        self.schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
-        schedule_schedules = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
-
-
-    
-            
-
-                
-
-
-
-
-
-
-
 #network class, represents the overall structure of the transport network
 class Network:
     #initalise the physical network
@@ -166,28 +144,57 @@ class Network:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
 
 
-    #create the scheduler and schedule 
-    def create_scheduler(self,schedule_file_path):
+    #create the schedule and functionality needed for scheduling
+    def create_schedules(self,schedule_file_path):
         schedule_csv = pd.read_csv(schedule_file_path)
-        schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
-        schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
-        schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
-        schedule_schedules = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
-        #final_schedule = schedule.Schedule(name)
-        
+        self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
+        self.schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
+        self.schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
+        schedule_texts = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
+        self.schedules = [] #list to store the schedule objects
+        num_schedules = len(self.schedule_names)
+
+        for i in range(num_schedules):
+            self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_texts[i])) #create a schedule object for each schedule
         #now create a list of destinations and edges from the list of nodes
 
     #create a schedule object from a name and a text string
-    def create_schedule(self,name,schedule):
-        pass
+    def create_schedule(self,name,schedule_string):
+        node_names = extract_schedule_list_txt(schedule_string) #extract node names from the schedule string
+        num_nodes = len(node_names)
+        node_arrival_times = np.zeros(num_nodes)#arrival times at each node, starting from 0 at the starting node
+        node_counter = 0 #which node is currently the next destination
+        new_schedule = schedule.Schedule(name)
+        previous_node_name = ""
+        #add nodes and edges to the schedule
+        for node_name in node_names:
+            #when processing the starting node, we just add the node to the schedule
+            node = self.nodes[self.get_node_index(node_name)]
+            if previous_node_name == "":
+                new_schedule.add_start_node(node)
+                previous_node = node
+                previous_node_name = node_name
+                node_counter += 1 #we will now be processing the next node
+            else:
+                edge_name = previous_node_name + ' to ' + node_name #calculate the name of the edge between these two nodes
+                edge = self.edges[self.get_edge_index(edge_name)]
+                edge_time = edge.provide_travel_time()
+                new_schedule.add_destination(node,edge)
+                node_arrival_times[node_counter] = node_arrival_times[node_counter-1] + edge_time
+                previous_node = node
+                previous_node_name = node_name
+                node_counter += 1
 
-
-
+        #now store arrivial times in the schedule
+        new_schedule.add_schedule_times(node_arrival_times)
+        return new_schedule
 
     #add an edge between specified start and end node            
     def add_edge(self,start_node,end_node,travel_time):
         name = start_node + ' to ' + end_node
         while name in self.edge_names:#prevent duplicate names
+            #note, that duplicate edge names cause problems with the creation of schedules, so try and avoid them
+            warnings.warn('duplicate edge name ', name, ' this is poorly supported, try and only have one edge directly between two nodes')
             name = name + ' alt '
         self.edge_names.append(name)#update the list of edge names
         new_edge = Edge(name,start_node,end_node,travel_time)
@@ -260,15 +267,35 @@ class Network:
         self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5) 
         return self.origin_destination_trips
 
+    #get the index of a node name in the list of nodes
+    def get_node_index(self,node_name):
+        #try and find the starting node in the list of all nodes
+        try:
+            index = self.node_names.index(node_name)
+            return index
+        except ValueError:
+            #handle case where starting name not in list of names
+            warnings.warn('node_name  ', node_name, 'is not in the list of node names in this network')
+            return -1 #return -1 to indicate error
+
+    #get the index of an edge name in the list of edges
+    def get_edge_index(self,edge_name):
+        #try and find the starting node in the list of all nodes
+        try:
+            index = self.edge_names.index(edge_name)
+            return index
+        except ValueError:
+            #handle case where starting name not in list of names
+            warnings.warn('edge_name  ', edge_name, 'is not in the list of edge names in this network')
+            return -1 #return -1 to indicate error
+
+
     #provide a breakdown of where passengers starting at a particular node are going
     def test_origin_destination_matrix(self,start_node_name):
         #try and find the starting node in the list of all nodes
-        try:
-            start_index = self.node_names.index(start_node_name)
-        except ValueError:
-            #handle case where starting name not in list of names
-            warnings.warn('start_node_name  ', start_node_name, 'is not in the list of node names in this network')
-            return False #return false to indicate error
+        start_index = get_node_index(self,start_node_name)
+        if start_index==-1:
+            return False
         #if there was not an error, continue
         num_nodes = len(self.node_names)
         trips_from_start = self.origin_destination_trips[start_index:start_index+1,:][0]
@@ -310,7 +337,12 @@ class Network:
         for i in range(num_nodes):
             print(self.node_names[i], ' time ',best_distance_to_nodes[i])
     
-
+    def test_schedules(self):
+        num_schedules = len(self.schedule_names)
+        #test all the schedules in the network
+        for i in range(num_schedules):
+            self.schedules[i].test_schedule()
+        
 
 #assign trips between origin destination pairs using the gravity model
 #starts/stops are number of passengers starting/stopping at particular nodes (1D Numpy array)
@@ -423,7 +455,8 @@ def extract_schedule_list_txt(schedule_string):
             new_node = [] #reset the node
         else:
             new_node.append(letter) #append the letter to the node name
-    
+    #also add on the final node (after the last comma)
+    nodes.append("".join(new_node))
     return nodes
 
     
