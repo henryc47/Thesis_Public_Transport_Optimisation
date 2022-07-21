@@ -52,6 +52,8 @@ class Node:
             print('edge ', edge.name, ' between ', edge.start_node, ' and ', edge.end_node, ' does not start at node ', self.name)
             return False #Return false to indicate edge has not been associated with the node
 
+
+
     #return the time taken to travel along a particular edge
     #for this function to work correctly, edge names must be unique
     def provide_edge_time(self,edge_name):
@@ -80,17 +82,19 @@ class Node:
             print('node ', destination_name, ' not in list of nodes reachable from this node')
             return False #False to indicate search operation unsuccessful
     
+    
     def test_node(self):
         print('from node ',self.name, ' edges are')
         for i in range(len(self.edge_names)):
             print(self.edge_names[i], ' goes too ',self.edge_destinations[i],' taking ',self.edge_times[i])
         print('node latitude is ',self.latitude, ' longitude is ',self.longitude)
+    
 
 #network class, represents the overall structure of the transport network
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_file_path,edges_file_path,verbose=True):
+    def __init__(self,nodes_file_path,edges_file_path,schedule_file_path,verbose=True):
         #where we will store edges and nodes
         time1 = time.time()
         self.edges = [] #list of edges 
@@ -142,21 +146,29 @@ class Network:
         time2 = time.time()
         if verbose:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
-
+        
+        #now create the schedules
+        time1 = time.time()
+        self.create_schedules(schedule_file_path)
+        time2 = time.time()
+        if verbose:
+            print('time to extract schedules', time2-time1, ' seconds')
 
     #create the schedule and functionality needed for scheduling
     def create_schedules(self,schedule_file_path):
         schedule_csv = pd.read_csv(schedule_file_path)
         self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
-        self.schedule_gaps = schedule_csv["Gap"].to_list() #extract the gap in time (in minutes) between services along a particular route
-        self.schedule_offsets = schedule_csv["Offset"].to_list() #extract the offset from the start of time (the hour) and when the first service occurs
+        self.schedule_gaps = np.array(schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
+        self.schedule_offsets = np.array(schedule_csv["Offset"].to_list()) #extract the offset from the start of time (the hour) and when the first service occurs
         schedule_texts = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
         self.schedules = [] #list to store the schedule objects
         num_schedules = len(self.schedule_names)
 
         for i in range(num_schedules):
             self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_texts[i])) #create a schedule object for each schedule
-        #now create a list of destinations and edges from the list of nodes
+        
+        #now that we have created the list of schedules, time to initalise the list of timestamps when services are to be dispatched
+        self.dispatch_schedule = np.zeros(num_schedules) + self.schedule_offsets
 
     #create a schedule object from a name and a text string
     def create_schedule(self,name,schedule_string):
