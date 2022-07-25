@@ -29,12 +29,15 @@ class Display:
     #setup the window object
     def setup_window(self): 
         window = tk.Tk()
+        window.attributes("-fullscreen", True) #make the window full screen
+        #window.eval('tk::PlaceWindow . center')
         window.title('Network Simulation')
         window_width = window.winfo_screenwidth()
         window_height = window.winfo_screenheight()
         center_x = int(window_width/2)
         center_y = int(window_height/2)
-        window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        #window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        #window.geometry(f'{window_width}x{window_height}') #this code renders the window in the corret position
         self.window = window
 
     #setup the canvas object, on which we draw our represention of the network
@@ -82,15 +85,20 @@ class Display:
         pixels_per_degree_horizontal = (self.canvas_width-(self.max_circle_radius*4))/range_longitude
         #the lower value is the limiting factor for an undistorted map
         self.pixels_per_degree = min(pixels_per_degree_vertical,pixels_per_degree_horizontal) 
-        
+
 
     def draw_base_nodes(self):
         num_nodes = len(self.node_names)
         self.node_canvas_ids = [] #keep track of the ids of canvas objects drawn so we can delete them if need be
+        self.nodes_x = []
+        self.nodes_y = []
         for i in range(num_nodes):
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
-            id = self.canvas.create_oval(x-self.base_node_radius,y-self.base_node_radius,x+self.base_node_radius,y+self.base_node_radius,fill='black') #draw a circle for the node
-            
+            self.nodes_x.append(x)
+            self.nodes_y.append(y)
+            id = self.canvas.create_oval(x-self.base_node_radius,y-self.base_node_radius,x+self.base_node_radius,y+self.base_node_radius,fill='grey') #draw a circle for the node
+            self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when it is clicked on
+            self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.node_canvas_ids.append(id) #store the id of the drawn element
 
 
@@ -111,12 +119,23 @@ class Display:
         x = self.canvas_center_x+(longitude_offset*self.pixels_per_degree)
         return (x,y)
         
-    def node_clicked(self):
-        print('node clicked')
+    def node_enter(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id)
+        node_name = self.node_names[id_index]
+        print('node viewed ', node_name)
+        x = self.nodes_x[id_index]
+        y = self.nodes_y[id_index]
+        display_text = "Node : " + node_name
+        self.text_id = self.canvas.create_text(x,y-15,text=display_text,state=tk.DISABLED) #create a text popup, which is not interactive
 
 
-
-
+    def node_leave(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id)
+        node_name = self.node_names[id_index]
+        print('node left ', node_name)
+        self.canvas.delete(self.text_id) #delete the text popup from node_enter
 
 
 
