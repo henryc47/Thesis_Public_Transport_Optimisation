@@ -6,6 +6,7 @@ import warnings #for warnings
 import numpy as np #for large scale mathematical operations
 import time as time #for benchmarking
 import schedule as schedule
+import vehicle as vehicle
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -96,6 +97,7 @@ class Network:
     #note, this assumes that passengers are evenly distributed through the day
     def __init__(self,nodes_file_path,edges_file_path,schedule_file_path,verbose=True):
         #where we will store edges and nodes
+        self.verbose = verbose
         time1 = time.time()
         self.edges = [] #list of edges 
         self.nodes = [] #list of nodes
@@ -134,25 +136,55 @@ class Network:
         num_hours = 12#
         self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour for each station
         time2 = time.time()
-        if verbose:
+        if self.verbose:
             print('time to extract and process network data - ', time2-time1, ' seconds')
         time1 = time.time()
         self.find_distance_to_all()#find the shortest distance between all edges on the network
         time2 = time.time()
-        if verbose:
+        if self.verbose:
             print('time to find ideal travel time between all nodes - ', time2-time1, ' seconds')
         time1 = time.time()
         self.create_origin_destination_matrix()#create the origin destination matrix for the network
         time2 = time.time()
-        if verbose:
+        if self.verbose:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
         
         #now create the schedules
         time1 = time.time()
         self.create_schedules(schedule_file_path)
         time2 = time.time()
-        if verbose:
+        if self.verbose:
             print('time to extract schedules', time2-time1, ' seconds')
+        
+        #setup for vehicle simulations
+        self.num_vehicles_started_here = np.zeros(num_nodes) #store the number of vehicles on the network which started from a particular node
+        self.vehicles = [] #container to store vehicles in
+        self.vehicle_names = [] #container to store vehicle names in, note this is just schedule name followed by initial departure time
+        #set the simulation timestamp to be 0 (start of simulation)
+
+        self.time = 0
+
+
+
+    #create a new vehicle and add it to the network
+    def create_vehicle(self,schedule):
+        vehicle_name = str(self.time) + " " + schedule.provide_name() #calculate the vehicles name
+        junk,start_node = schedule.provide_next_destination() #extract the first destination of the schedule
+        start_node_index = self.get_node_index(start_node.name)
+        self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
+        self.vehicle_names.append(vehicle_name) #add the vehicles name to the list
+        self.vehicles.append(vehicle.Vehicle(schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
+        if self.verbose:
+            print('a vehicle ', vehicle_name, ' has been created at ',start_node, ' at time ',self.time)
+
+    #this function updates all the vehicle objects in the network
+    def move_vehicles(self):
+        for vehicle in self.vehicles:
+            vehicle.update()
+        
+
+        
+        
 
     #create the schedule and functionality needed for scheduling
     def create_schedules(self,schedule_file_path):

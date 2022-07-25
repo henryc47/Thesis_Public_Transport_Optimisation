@@ -19,18 +19,24 @@ class Schedule:
         self.nodes.append(next_node)
         self.edges.append(next_edge)
 
-    #provide next destination
-    def provide_destination(self):
+
+    #provide next destination, note this requires you to have first deleted the initial destination to work correctly
+    def provide_next_destination(self):
         if len(self.nodes)==0:
             return False#return false to indicate there are no more destinations, schedule is finished
+        if len(self.nodes)>len(self.edges): #provide the start point if we are yet to remove it
+            return (True,self.nodes[0])
         else:
             #return true to indicate there is a next destination, provide next destination and how to get there
             return (True,self.nodes[0],self.edges[0])
 
-    #remove the destination we just reached    
+    #remove the destination we just reached and the node we used to reach it    
     def remove_reached_destination(self):
         if len(self.nodes)==0:
             return False#return false to indicate there are no more destinations, schedule is finished
+        if len(self.nodes)>len(self.edges): #remove the start point if we are yet to remove it
+            del self.nodes[0]
+            return True
         else:  
             del self.nodes[0]
             del self.edges[0]
