@@ -23,6 +23,7 @@ class Display:
         #display constants 
         self.max_circle_radius = 20
         self.base_node_radius = 5
+        self.base_node_color = 'grey'
 
 
 
@@ -49,10 +50,6 @@ class Display:
         self.canvas_center_x = int(self.canvas_width/2)
         self.canvas_center_y = int(self.canvas_height/2)
         self.canvas = tk.Canvas(self.window, bg="white", height=self.canvas_height, width=self.canvas_width)
-        #self.canvas_max_x = canvas_width-50
-        #self.canvas_max_y = canvas_height-50
-        #self.canvas_center_x = int(canvas_width)/2
-        #self.canvas_center_y = int(canvas_height)/2
 
     def render_canvas(self):
         self.canvas.pack(side = tk.RIGHT)
@@ -63,7 +60,7 @@ class Display:
         self.node_names = nodes_csv["Name"].to_list()
         node_positions = nodes_csv["Location"].to_list()
         self.node_latitudes = []
-        self.node_longitudes = [] 
+        self.node_longitudes = []
         for position in node_positions:
             latitude,longitude = n.extract_coordinates(position)
             self.node_latitudes.append(latitude)
@@ -86,26 +83,39 @@ class Display:
         #the lower value is the limiting factor for an undistorted map
         self.pixels_per_degree = min(pixels_per_degree_vertical,pixels_per_degree_horizontal) 
 
-
-    def draw_base_nodes(self):
+    #calculate information about position of nodes
+    def calculate_node_position(self):
         num_nodes = len(self.node_names)
-        self.node_canvas_ids = [] #keep track of the ids of canvas objects drawn so we can delete them if need be
         self.nodes_x = []
         self.nodes_y = []
+        self.nodes_radii = [self.base_node_radius]*num_nodes #default size for nodes
+        self.nodes_colour = [self.base_node_color]*num_nodes #default
+        self.node_canvas_ids = ['blank']*num_nodes 
         for i in range(num_nodes):
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
             self.nodes_x.append(x)
             self.nodes_y.append(y)
-            id = self.canvas.create_oval(x-self.base_node_radius,y-self.base_node_radius,x+self.base_node_radius,y+self.base_node_radius,fill='grey') #draw a circle for the node
+
+    def render_nodes(self):
+        num_nodes = len(self.node_names)
+        for i in range(num_nodes):
+            #extract data
+            x = self.nodes_x[i]
+            y = self.nodes_y[i]
+            radius = self.nodes_radii[i]
+            colour = self.nodes_colour[i]
+            if self.node_canvas_ids[i]!='blank':
+                #delete the old oval object if one exists
+                self.canvas.delete(self.node_canvas_ids[i])
+            id = self.canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=colour) #draw a circle to represent the node
             self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when it is clicked on
             self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
-            self.node_canvas_ids.append(id) #store the id of the drawn element
-
-
+            self.node_canvas_ids[i] = id #store the id so we can delete the object later
 
     def draw_network_click(self):
         self.extract_nodes_graph('nodes_medium.csv')
-        self.draw_base_nodes()
+        self.calculate_node_position()
+        self.render_nodes()
         
     #def resize_window(self,window_height,window_width):
     #    center_x = int(self.window.winfo_screenwidth()/2)
@@ -118,7 +128,8 @@ class Display:
         y = self.canvas_center_y-(latitude_offset*self.pixels_per_degree) #we need to flip the offset along the y axis, as higher values mean further down (south) in canvas coordinates
         x = self.canvas_center_x+(longitude_offset*self.pixels_per_degree)
         return (x,y)
-        
+
+    #event for when we mouse over a node, create a text box revealling node name and (planned) number of waiting passengers   
     def node_enter(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id)
@@ -129,7 +140,7 @@ class Display:
         display_text = "Node : " + node_name
         self.text_id = self.canvas.create_text(x,y-15,text=display_text,state=tk.DISABLED) #create a text popup, which is not interactive
 
-
+    #event for when the mouse leaves a node, remove the text box
     def node_leave(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id)
@@ -137,6 +148,19 @@ class Display:
         print('node left ', node_name)
         self.canvas.delete(self.text_id) #delete the text popup from node_enter
 
+    #for testing
+    def update_node_size(self,size):
+        num_nodes = len(self.node_names)
+        for i in range(num_nodes):
+            self.nodes_radii[i] = size
+        self.render_nodes()
+    
+    #for testing
+    def update_node_colour(self,colour):
+        num_nodes = len(self.node_names)
+        for i in range(num_nodes):
+            self.nodes_colour[i] = colour
+        self.render_nodes()
 
 
 
