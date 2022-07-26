@@ -25,6 +25,10 @@ class Display:
         self.max_circle_radius = 20
         self.base_node_radius = 5
         self.base_node_color = 'grey'
+        self.line_width = 2
+        self.active_width = 3
+        self.line_colour = 'black'
+
 
 
 
@@ -126,12 +130,12 @@ class Display:
             end_x = self.nodes_x[end_index]
             end_y = self.nodes_y[end_index]
             end_size = self.nodes_radii[end_index]
-            line_width = 2
-            active_width = 4
             if self.edge_canvas_ids[i]!='blank':
                 #delete the old line object if one exists
                 self.canvas.delete(self.edge_canvas_ids[i])
-            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill='black',disableddash=2,activewidth=4) #draw a circle to represent the node
+            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=self.line_colour,disableddash=self.line_width,activewidth=self.active_width) #draw a circle to represent the node
+            self.canvas.tag_bind(id,'<Enter>',self.edge_enter) #some information about the start and end nodes will be displayed when we mouse over an edge
+            self.canvas.tag_bind(id,'<Leave>',self.edge_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.edge_canvas_ids[i] = id
 
 
@@ -161,7 +165,7 @@ class Display:
                 #delete the old oval object if one exists
                 self.canvas.delete(self.node_canvas_ids[i])
             id = self.canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=colour) #draw a circle to represent the node
-            self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when it is clicked on
+            self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when the mouse is hovered over it
             self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
 
@@ -204,6 +208,33 @@ class Display:
         node_name = self.node_names[id_index]
         print('node left ', node_name)
         self.canvas.delete(self.text_id) #delete the text popup from node_enter
+
+    #event for when we mouse over an edge, display text boxes above connected nodes
+    def edge_enter(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.edge_canvas_ids.index(event_id)
+        #find the nodes at the ends of the edge
+        start_index = self.edge_start_indices[id_index]
+        end_index = self.edge_end_indices[id_index]
+        #find the x and y positions of these nodes
+        start_x = self.nodes_x[start_index]
+        start_y = self.nodes_y[start_index]
+        end_x = self.nodes_x[end_index]
+        end_y = self.nodes_y[end_index]
+        #decide on the text popup above each node
+        display_text_start = "Node : " + self.node_names[start_index]
+        display_text_end = "Node : " + self.node_names[end_index]
+        #create the text popups, which are not interactive
+        self.text_id_line_start = self.canvas.create_text(start_x,start_y-15,text=display_text_start,state=tk.DISABLED)
+        self.text_id_line_end = self.canvas.create_text(end_x,end_y-15,text=display_text_end,state=tk.DISABLED)
+
+    def edge_leave(self,event):
+        #event_id = event.widget.find_withtag('current')[0]
+        #id_index = self.edge_canvas_ids.index(event_id)
+        self.canvas.delete(self.text_id_line_start)
+        self.canvas.delete(self.text_id_line_end)
+
+
 
     #for testing
     def update_node_size(self,size):
