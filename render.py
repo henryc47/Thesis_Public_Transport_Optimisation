@@ -4,6 +4,7 @@
 import tkinter as tk
 import pandas as pd 
 import network as n
+import warnings as warnings
 
 class Display:
 
@@ -54,7 +55,7 @@ class Display:
     def render_canvas(self):
         self.canvas.pack(side = tk.RIGHT)
 
-    #extract the list of nodes from a csv file into a python list
+    #extract the list of nodes from a csv file into a python list, and calculate global geographical information for plotting
     def extract_nodes_graph(self,nodes_file_path):
         nodes_csv = pd.read_csv(nodes_file_path,thousands=r',')
         self.node_names = nodes_csv["Name"].to_list()
@@ -82,6 +83,58 @@ class Display:
         pixels_per_degree_horizontal = (self.canvas_width-(self.max_circle_radius*4))/range_longitude
         #the lower value is the limiting factor for an undistorted map
         self.pixels_per_degree = min(pixels_per_degree_vertical,pixels_per_degree_horizontal) 
+
+    #extract the list of edges from a csv file into a python list, and calculate global geographical information for plotting
+    #this needs to be run after nodes have been extracted so start/end node index assignment can be done
+    def extract_edges_graph(self,edges_file_path):
+        edges_csv = pd.read_csv(edges_file_path,thousands=r',')
+        edge_starts = edges_csv["Start"].to_list()
+        edge_ends = edges_csv["End"].to_list()
+        num_edges = len(edge_starts)#for the purpose of plotting, a bidirectional edge is one edge
+        #find the index of edge starts and ends in the list of nodes
+        self.edge_start_indices = []
+        self.edge_end_indices = []
+        for i in range(num_edges):
+            #get the start index
+            try:
+                start_index = self.node_names.index(edge_starts[i])
+            except ValueError:
+                warnings.warn('edge start ', edge_starts[i],' not present in list of node names')
+                start_index = -1 #this will cause a crash later (by design), as our program a non-existent start node
+            
+            #get the end index
+            try:
+                end_index = self.node_names.index(edge_ends[i])
+            except ValueError:
+                warnings.warn('edge end ', edge_ends[i],' not present in list of node names')
+                end_index = -1 #this will cause a crash later (by design), as our program contains a non-existent end node
+
+            self.edge_start_indices.append(start_index)
+            self.edge_end_indices.append(end_index)
+
+        self.edge_canvas_ids = ['blank']*num_edges #store edge canvas ids in a list so we can delete them later, 'blank' indicates they have not yet been created
+
+    #needs to be run after edges have been extracted and nodes have been drawn to work correctly
+    def render_edges(self):
+        num_edges = len(self.edge_start_indices)
+        for i in range(num_edges):
+            start_index = self.edge_start_indices[i]
+            end_index = self.edge_end_indices[i]
+            start_x = self.nodes_x[start_index]
+            start_y = self.nodes_y[start_index]
+            start_size = self.nodes_radii[start_index]
+            end_x = self.nodes_x[end_index]
+            end_y = self.nodes_y[end_index]
+            end_size = self.nodes_radii[end_index]
+            line_width = 2
+            active_width = 4
+            if self.edge_canvas_ids[i]!='blank':
+                #delete the old line object if one exists
+                self.canvas.delete(self.edge_canvas_ids[i])
+            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill='black',disableddash=2,activewidth=4) #draw a circle to represent the node
+            self.edge_canvas_ids[i] = id
+
+
 
     #calculate information about position of nodes
     def calculate_node_position(self):
@@ -112,10 +165,14 @@ class Display:
             self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
 
+
+
     def draw_network_click(self):
-        self.extract_nodes_graph('nodes_medium.csv')
+        self.extract_nodes_graph('nodes_large.csv')
         self.calculate_node_position()
+        self.extract_edges_graph('edges_large.csv')
         self.render_nodes()
+        self.render_edges()
         
     #def resize_window(self,window_height,window_width):
     #    center_x = int(self.window.winfo_screenwidth()/2)
@@ -154,6 +211,7 @@ class Display:
         for i in range(num_nodes):
             self.nodes_radii[i] = size
         self.render_nodes()
+        self.render_edges()
     
     #for testing
     def update_node_colour(self,colour):
@@ -161,6 +219,7 @@ class Display:
         for i in range(num_nodes):
             self.nodes_colour[i] = colour
         self.render_nodes()
+        self.render_edges()
 
 
 

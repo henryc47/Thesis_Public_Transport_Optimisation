@@ -1,0 +1,231 @@
+Start,End,Time,Bidirectional
+Berowra,Mt Ku-Ring Gai,4,Yes
+Berowra,Hornsby,10,Yes
+Mt Ku-Ring Gai,Mount Colah,3,Yes
+Mount Colah,Asquith,3,Yes
+Asquith,Hornsby,3,Yes
+Hornsby,Waitara,2,Yes
+Waitara,Wahroonga,2,Yes
+Wahroonga,Warrawee,2,Yes
+Warrawee,Turramurra,2,Yes
+Turramurra,Pymble,3,Yes
+Pymble,Gordon,3,Yes
+Gordon,Killara,2,Yes
+Gordon,Chatswood,6,Yes
+Killara,Lindfield,2,Yes
+Lindfield,Roseville,2,Yes
+Roseville,Chatswood,3,Yes
+Chatswood,Atarmon,2,Yes
+Chatswood,St Leonards,4,Yes
+Atarmon,St Leonards,3,Yes
+St Leonards,Wollstonecraft,3,Yes
+St Leonards,North Sydney,6,Yes
+Wollstonecraft,Waverton,2,Yes
+Waverton,North Sydney,3,Yes
+North Sydney,Milsons Point,2,Yes
+Milsons Point,Wynyard,4,Yes
+Wynyard,Town Hall,2,Yes
+Town Hall,Central,3,Yes
+Hornsby,Normanhurst,3,Yes
+Hornsby,Epping,10,Yes
+Normanhurst,Thornleigh,3,Yes
+Thornleigh,Pennant Hills,2,Yes
+Pennant Hills,Beecroft,3,Yes
+Beecroft,Cheltenham,2,Yes
+Cheltenham,Epping,3,Yes
+Epping,Eastwood,2,Yes
+Epping,Strathfield,9,Yes
+Eastwood,Denistone,2,Yes
+Eastwood,Rhodes,5,Yes
+Denistone,West Ryde,2,Yes
+West Ryde,Meadowbank,3,Yes
+Meadowbank,Rhodes,2,Yes
+Rhodes,Concord West,3,Yes
+Rhodes,Strathfield,5,Yes
+Concord West,North Strathfield,2,Yes
+North Strathfield,Strathfield,2,Yes
+Central,Redfern,2,Yes
+Central,Strathfield,12,Yes
+Redfern,Macdonaldtown,3,Yes
+Redfern,Strathfield,11,Yes
+Redfern,Burwood,10,Yes
+Redfern,Ashfield,8,Yes
+Redfern,Newtown,4,Yes
+Macdonaldtown,Newtown,2,Yes
+Newtown,Stanmore,2,Yes
+Newtown,Ashfield,6,Yes
+Stanmore,Petersham,2,Yes
+Petersham,Lewisham,2,Yes
+Lewisham,Summer Hill,2,Yes
+Summer Hill,Ashfield,2,Yes
+Ashfield,Croydon,3,Yes
+Ashfield,Burwood,4,Yes
+Croydon,Burwood,2,Yes
+Burwood,Strathfield,3,Yes
+Tallawong,Rouse Hill,2,Yes
+Rouse Hill,Kellyville,3,Yes
+Kellyville,Bella Vista,2,Yes
+Bella Vista,Norwest,3,Yes
+Norwest,Hills Showground,2,Yes
+Hills Showground,Castle Hill,3,Yes
+Castle Hill,Cherrybrook,2,Yes
+Cherrybrook,Epping,6,Yes
+Epping,Macquarie University,4,Yes
+Macquarie University,Macquarie Park,2,Yes
+Macquarie Park,North Ryde,2,Yes
+North Ryde,Chatswood,5,Yes
+Strathfield,Homebush,2,Yes
+Homebush,Flemington,2,Yes
+Flemington,Lidcombe,3,Yes
+Lidcombe,Auburn,3,Yes
+Auburn,Clyde,2,Yes
+Clyde,Granville,2,Yes
+Granville,Harris Park,3,Yes
+Harris Park,Parramatta,2,Yes
+Strathfield,Flemington,3,Yes
+Strathfield,Lidcombe,5,Yes
+Auburn,Granville,3,Yes
+Granville,Parramatta,3,Yes
+Strathfield,Parramatta,12,Yes
+Parramatta,Westmead,3,Yes
+Parramatta,Blacktown,9,Yes
+Westmead,Wentworthville,2,Yes
+Westmead,Seven Hills,6,Yes
+Wentworthville,Pendle Hill,3,Yes
+Pendle Hill,Toongabbie,3,Yes
+Toongabbie,Seven Hills,3,Yes
+Seven Hills,Blacktown,3,Yes
+Blacktown,Doonside,4,Yes
+Doonside,Rooty Hill,3,Yes
+Rooty Hill,Mount Druitt,3,Yes
+Mount Druitt,St Mary's,3,Yes
+St Mary's,Werrington,3,Yes
+Werrington,Kingswood,3,Yes
+Kingswood,Penrith,3,Yes
+Penrith,Emu Plains,3,Yes
+Blacktown,Mount Druitt,8,Yes
+Mount Druitt,Penrith,8,Yes
+Blacktown,Penrith,14,Yes
+Blacktown,Marayong,3,Yes
+Marayong,Quakers Hill,3,Yes
+Quakers Hill,Schofields,3,Yes
+Schofields,Riverstone,3,Yes
+Riverstone,Vineyard,4,Yes
+Vineyard,Mulgrave,3,Yes
+Mulgrave,Windsor,3,Yes
+Windsor,Claredon,3,Yes
+Claredon,Richmond,4,Yes
+Wynyard,Circular Quay,3,Yes
+Circular Quay,St James,3,Yes
+St James,Museum,2,Yes
+Museum,Central,3,Yes
+Bondi Junction,Edgecliff,3,Yes
+Edgecliff,Kings Cross,2,Yes
+Kings Cross,Martin Place,3,Yes
+Martin Place,Town Hall,2,Yes
+Redfern,Erskineville,3,Yes
+Erskineville,St Peters,2,Yes
+St Peters,Sydenham,2,Yes
+Redfern,Sydenham,6,Yes
+Redfern,Wolli Creek,8,Yes
+Sydenham,Marrickville,3,Yes
+Marrickville,Dulwich Hill,2,Yes
+Dulwich Hill,Hurlstone Park,2,Yes
+Hurlstone Park,Canterbury,2,Yes
+Canterbury,Campsie,2,Yes
+Campsie,Belmore,3,Yes
+Belmore,Lakemba,2,Yes
+Lakemba,Wiley Park,2,Yes
+Wiley Park,Punchbowl,2,Yes
+Punchbowl,Bankstown,3,Yes
+Marrickville,Campsie,6,Yes
+Sydenham,Campsie,8,Yes
+Campsie,Bankstown,8,Yes
+Cabramatta,Carramar,3,Yes
+Carramar,Villawood,2,Yes
+Villawood,Leightonfield,1,Yes
+Leightonfield,Chester Hill,2,Yes
+Chester Hill,Sefton,2,Yes
+Sefton,Regents Park,3,Yes
+Regents Park,Berala,2,Yes
+Berala,Lidcombe,3,Yes
+Sefton,Birrong,4,Yes
+Birrong,Yagoona,2,Yes
+Yagoona,Bankstown,3,Yes
+Birrong,Regents Park,3,Yes
+Cabramatta,Sefton,7,Yes
+Sefton,Lidcombe,6,Yes
+Sydenham,Tempe,2,Yes
+Tempe,Wolli Creek,2,Yes
+Sydenham,Wolli Creek,3,Yes
+Wolli Creek,Turrella,2,Yes
+Wolli Creek,Kingsgrove,5,Yes
+Wolli Creek,Revesby,11,Yes
+Turrella,Bardwell Park,2,Yes
+Bardwell Park,Bexley North,2,Yes
+Bexley North,Kingsgrove,2,Yes
+Kingsgrove,Beverly Hills,3,Yes
+Kingsgrove,Revesby,8,Yes
+Beverly Hills,Narwee,2,Yes
+Narwee,Riverwood,3,Yes
+Riverwood,Padstow,3,Yes
+Padstow,Revesby,2,Yes
+Revesby,Panania,2,Yes
+Revesby,Glenfield,8,Yes
+Panania,East Hills,2,Yes
+East Hills,Holsworthy,3,Yes
+Holsworthy,Glenfield,5,Yes
+Glenfield,Macquarie Fields,2,Yes
+Macquarie Fields,Ingleburn,3,Yes
+Ingleburn,Minto,4,Yes
+Minto,Leumeah,3,Yes
+Leumeah,Campbelltown,3,Yes
+Campbelltown,Macarthur,3,Yes
+Leppington,Edmondson Park,5,Yes
+Edmondson Park,Glenfield,4,Yes
+Glenfield,Casula,4,Yes
+Casula,Liverpool,4,Yes
+Liverpool,Warwick Farm,2,Yes
+Warwick Farm,Cabramatta,3,Yes
+Cabramatta,Canley Vale,2,Yes
+Canley Vale,Fairfield,3,Yes
+Fairfield,Yennora,2,Yes
+Yennora,Guildford,3,Yes
+Guildford,Merrylands,3,Yes
+Merrylands,Granville,4,Yes
+Merrylands,Harris Park,4,Yes
+Central,Mascot,3,Yes
+Mascot,Green Square,3,Yes
+Green Square,Domestic,3,Yes
+Domestic,International,2,Yes
+International,Wolli Creek,2,Yes
+Central,Domestic,7,Yes
+Wolli Creek,Arncliffe,2,Yes
+Wolli Creek,Rockdale,3,Yes
+Wolli Creek,Hurstville,7,Yes
+Arncliffe,Banksia,2,Yes
+Banksia,Rockdale,2,Yes
+Rockdale,Kogarah,2,Yes
+Kogarah,Carlton,2,Yes
+Kogarah,Hurstville,4,Yes
+Carlton,Allawah,2,Yes
+Allawah,Hurstville,2,Yes
+Hurstville,Penshurst,2,Yes
+Hurstville,Sutherland,10,Yes
+Penshurst,Mortdale,2,Yes
+Mortdale,Oatley,2,Yes
+Oatley,Como,4,Yes
+Como,Janalli,2,Yes
+Janalli,Sutherland,3,Yes
+Cronulla,Woolooware,2,Yes
+Woolooware,Caringbah,3,Yes
+Caringbah,Miranda,3,Yes
+Miranda,Gymea,2,Yes
+Gymea,Kirrawee,2,Yes
+Kirrawee,Sutherland,3,Yes
+Miranda,Sutherland,5,Yes
+Sutherland,Loftus,2,Yes
+Sutherland,Waterfall,10,Yes
+Loftus,Engadine,4,Yes
+Engadine,Heathcote,3,Yes
+Heathcote,Waterfall,5,Yes
