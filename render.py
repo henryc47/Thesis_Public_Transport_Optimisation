@@ -44,6 +44,11 @@ class Display:
         self.edge_file_path_label.pack()
         self.edge_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
         self.edge_file_path_entry.pack()
+        #label and input to import schedule files
+        self.schedule_file_path_label = tk.Label(master=self.controls,text='SCHEDULE FILE PATH',fg='black',bg='white',width=20)
+        self.schedule_file_path_label.pack()
+        self.schedule_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.schedule_file_path_entry.pack()
         #control for importing files 
         self.import_files_button = tk.Button(master=self.controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
         self.import_files_button.pack()
@@ -83,9 +88,11 @@ class Display:
         #extract the file paths from the entry widgets
         node_files_path = self.node_file_path_entry.get()
         edge_files_path = self.edge_file_path_entry.get()
+        schedule_files_path = self.schedule_file_path_entry.get()
         #check that each file path is valid, and if so, import the file
         node_path_valid = path.isfile(node_files_path)
         edge_path_valid = path.isfile(edge_files_path)
+        schedule_path_valid = path.isfile(schedule_files_path)
         #if user path invalid, inform the user of this
         import_files_message = ""
         import_successful = True #assume we imported unless it fails
@@ -97,6 +104,11 @@ class Display:
             import_files_message = import_files_message + edge_files_path + " is not a valid file \n"
             self.log_print(edge_files_path + " is not a valid file")
             import_successful = False
+        if schedule_path_valid==False:
+            import_files_message = import_files_message + schedule_files_path + " is not a valid file \n"
+            self.log_print(schedule_files_path + " is not a valid file")
+            import_successful = False
+
         if import_successful:
             #if file path is valid, actually import the files
             import_files_message = import_files_message + "files are valid \n"
@@ -111,6 +123,12 @@ class Display:
                 self.edges_csv = pd.read_csv(edge_files_path,thousands=r',')
             except:
                 import_files_message = import_files_message + " import of " + edge_files_path + " failed, not a valid csv file\n"
+                import_successful = False
+            #try and import the schedule
+            try:
+                self.schedule_csv = pd.read_csv(schedule_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + schedule_files_path + " failed, not a valid csv file\n"
                 import_successful = False
         
         #print a relevant message if import successful
