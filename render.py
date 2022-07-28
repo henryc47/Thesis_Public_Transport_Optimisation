@@ -28,6 +28,12 @@ class Display:
         #create the control panel
         self.controls = tk.Frame()
         self.controls.pack(side = tk.LEFT)
+        #options
+        #verbose option, determines level of logging to the console
+        self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
+        self.verbose_button = tk.Button(master=self.controls,fg='black',bg='white',command=self.verbose_button_click,width=20)
+        self.verbose_button.pack()
+        self.verbose_button_click() #display initial message
         #label and input to import node files
         self.node_file_path_label = tk.Label(master=self.controls,text='NODE FILE PATH',fg='black',bg='white',width=20)
         self.node_file_path_label.pack()
@@ -41,20 +47,36 @@ class Display:
         #control for importing files 
         self.import_files_button = tk.Button(master=self.controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
         self.import_files_button.pack()
-        
         #this button will draw the network
         self.draw_network_button = tk.Button(master=self.controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click,width=20)
         self.draw_network_button.pack()
         #this button will start the simulation
+
+
         #this label will provide information to the user
         self.message_header = tk.Label(master=self.controls,text='MESSAGE',fg='black',bg='white',width=20)
         self.message_header.pack()
         self.message = tk.Label(master=self.controls,text='',fg='black',bg='white',width=20)
         self.message.pack()
 
+    #prints a message to the console only if the logging level is at a certain level (default=1)
+    def log_print(self,message,log_level=1):
+        if self.verbose>=log_level:
+            print(message)
+
     #update the control message board
     def message_update(self,string):
         self.message.config(text=string)
+
+    #switch logging level upwards on click
+    def verbose_button_click(self):
+        if self.verbose==0:
+            self.verbose_button.config(text='VERBOSE')
+            self.verbose = 1
+        else: #if verbosity already at highest level or is unset, select minimum verbosity 
+            self.verbose_button.config(text='NO LOGGING')
+            self.verbose = 0
+        
 
     #import the requested files
     def import_files_click(self):
@@ -69,11 +91,11 @@ class Display:
         import_successful = True #assume we imported unless it fails
         if node_path_valid==False:
             import_files_message = import_files_message + node_files_path + " is not a valid file \n"
-            print(node_files_path, " is not a valid file")
+            self.log_print(node_files_path + " is not a valid file")
             import_successful = False
         if edge_path_valid==False:
             import_files_message = import_files_message + edge_files_path + " is not a valid file \n"
-            print(edge_files_path, " is not a valid file")
+            self.log_print(edge_files_path + " is not a valid file")
             import_successful = False
         if import_successful:
             #if file path is valid, actually import the files
@@ -82,7 +104,7 @@ class Display:
             try:
                 self.nodes_csv = pd.read_csv(node_files_path,thousands=r',')
             except:
-                import_files_message = import_files_message + " import of " + node_files_path + " failed, not a valid csv file\n"
+                import_files_message = import_files_message + " import of " + node_files_path + " failed \n not a valid csv file\n"
                 import_successful = False
             #try and import the edges
             try:
@@ -271,7 +293,7 @@ class Display:
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id)
         node_name = self.node_names[id_index]
-        print('node viewed ', node_name)
+        self.log_print('node viewed ' + node_name)
         x = self.nodes_x[id_index]
         y = self.nodes_y[id_index]
         display_text = "Node : " + node_name
@@ -282,7 +304,7 @@ class Display:
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id)
         node_name = self.node_names[id_index]
-        print('node left ', node_name)
+        self.log_print('node left ' + node_name)
         self.canvas.delete(self.text_id) #delete the text popup from node_enter
 
     #event for when we mouse over an edge, display text boxes above connected nodes
