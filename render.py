@@ -5,22 +5,15 @@ import tkinter as tk
 import pandas as pd 
 import network as n
 import warnings as warnings
+from os import path #for checking if file exists
 
 class Display:
 
     def __init__(self):
         self.setup_window() #create the display window
         self.setup_canvas() #create the canvas where we can draw edges and nodes and vehicles
-        self.render_canvas() 
-        #a textbox will allow us to select the file to import for visulisations
-        controls = tk.Frame(bg='silver')
-        controls.pack(side = tk.LEFT)
-        node_file_path_label = tk.Label(master=controls,text='NODE FILE PATH',fg='black',bg='white')
-        node_file_path_label.pack()
-        #file_path_entry = tk.Entry(master=controls,fg='white',bg='red')
-        #file_path_entry.pack()
-        self.draw_network_button = tk.Button(master=controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click)
-        self.draw_network_button.pack()
+        self.render_canvas() #setup the canvas on which we will draw our visulisation
+        self.setup_controls() #setup the widgets which will allow us to control the simulation and canvas 
         #display constants 
         self.max_circle_radius = 20
         self.base_node_radius = 5
@@ -28,9 +21,85 @@ class Display:
         self.line_width = 2
         self.active_width = 3
         self.line_colour = 'black'
+        self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
 
+    #setup the control options
+    def setup_controls(self):
+        #create the control panel
+        self.controls = tk.Frame()
+        self.controls.pack(side = tk.LEFT)
+        #label and input to import node files
+        self.node_file_path_label = tk.Label(master=self.controls,text='NODE FILE PATH',fg='black',bg='white',width=20)
+        self.node_file_path_label.pack()
+        self.node_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.node_file_path_entry.pack()
+        #label and input to import edge files
+        self.edge_file_path_label = tk.Label(master=self.controls,text='EDGE FILE PATH',fg='black',bg='white',width=20)
+        self.edge_file_path_label.pack()
+        self.edge_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.edge_file_path_entry.pack()
+        #control for importing files 
+        self.import_files_button = tk.Button(master=self.controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
+        self.import_files_button.pack()
+        
+        #this button will draw the network
+        self.draw_network_button = tk.Button(master=self.controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click,width=20)
+        self.draw_network_button.pack()
+        #this button will start the simulation
+        #this label will provide information to the user
+        self.message_header = tk.Label(master=self.controls,text='MESSAGE',fg='black',bg='white',width=20)
+        self.message_header.pack()
+        self.message = tk.Label(master=self.controls,text='',fg='black',bg='white',width=20)
+        self.message.pack()
 
+    #update the control message board
+    def message_update(self,string):
+        self.message.config(text=string)
 
+    #import the requested files
+    def import_files_click(self):
+        #extract the file paths from the entry widgets
+        node_files_path = self.node_file_path_entry.get()
+        edge_files_path = self.edge_file_path_entry.get()
+        #check that each file path is valid, and if so, import the file
+        node_path_valid = path.isfile(node_files_path)
+        edge_path_valid = path.isfile(edge_files_path)
+        #if user path invalid, inform the user of this
+        import_files_message = ""
+        import_successful = True #assume we imported unless it fails
+        if node_path_valid==False:
+            import_files_message = import_files_message + node_files_path + " is not a valid file \n"
+            print(node_files_path, " is not a valid file")
+            import_successful = False
+        if edge_path_valid==False:
+            import_files_message = import_files_message + edge_files_path + " is not a valid file \n"
+            print(edge_files_path, " is not a valid file")
+            import_successful = False
+        if import_successful:
+            #if file path is valid, actually import the files
+            import_files_message = import_files_message + "files are valid \n"
+            #try and import the nodes
+            try:
+                self.nodes_csv = pd.read_csv(node_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + node_files_path + " failed, not a valid csv file\n"
+                import_successful = False
+            #try and import the edges
+            try:
+                self.edges_csv = pd.read_csv(edge_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + edge_files_path + " failed, not a valid csv file\n"
+                import_successful = False
+        
+        #print a relevant message if import successful
+        if import_successful:
+            import_files_message = import_files_message + " files imported successfully"
+        else:
+            import_files_message = import_files_message + " file import failed"
+        
+        #print the message about the result of importing files
+        self.message_update(import_files_message)
+            
 
     #setup the window object
     def setup_window(self): 
@@ -60,10 +129,9 @@ class Display:
         self.canvas.pack(side = tk.RIGHT)
 
     #extract the list of nodes from a csv file into a python list, and calculate global geographical information for plotting
-    def extract_nodes_graph(self,nodes_file_path):
-        nodes_csv = pd.read_csv(nodes_file_path,thousands=r',')
-        self.node_names = nodes_csv["Name"].to_list()
-        node_positions = nodes_csv["Location"].to_list()
+    def extract_nodes_graph(self):
+        self.node_names = self.nodes_csv["Name"].to_list()
+        node_positions = self.nodes_csv["Location"].to_list()
         self.node_latitudes = []
         self.node_longitudes = []
         for position in node_positions:
@@ -90,10 +158,9 @@ class Display:
 
     #extract the list of edges from a csv file into a python list, and calculate global geographical information for plotting
     #this needs to be run after nodes have been extracted so start/end node index assignment can be done
-    def extract_edges_graph(self,edges_file_path):
-        edges_csv = pd.read_csv(edges_file_path,thousands=r',')
-        edge_starts = edges_csv["Start"].to_list()
-        edge_ends = edges_csv["End"].to_list()
+    def extract_edges_graph(self):
+        edge_starts = self.edges_csv["Start"].to_list()
+        edge_ends = self.edges_csv["End"].to_list()
         num_edges = len(edge_starts)#for the purpose of plotting, a bidirectional edge is one edge
         #find the index of edge starts and ends in the list of nodes
         self.edge_start_indices = []
@@ -172,16 +239,25 @@ class Display:
 
 
     def draw_network_click(self):
-        self.extract_nodes_graph('nodes_large.csv')
+        if self.first_render==False:
+            self.erase_network_graph()
+        self.extract_nodes_graph()
         self.calculate_node_position()
-        self.extract_edges_graph('edges_large.csv')
+        self.extract_edges_graph()
         self.render_nodes()
         self.render_edges()
-        
-    #def resize_window(self,window_height,window_width):
-    #    center_x = int(self.window.winfo_screenwidth()/2)
-    #    center_y = int(self.window.winfo_screenheight()/2)
-    #    self.window.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        self.first_render = False
+
+    #erase the network graph 
+    def erase_network_graph(self):
+        #erase all edges
+        for id in self.edge_canvas_ids:
+            if id!='blank':
+                self.canvas.delete(id)
+        #erase all nodes
+        for id in self.node_canvas_ids:
+            if id!='blank':
+                self.canvas.delete(id)
         
     def convert_lat_long_to_x_y(self,latitude,longitude):
         latitude_offset = latitude-self.central_latitude
@@ -233,6 +309,7 @@ class Display:
         #id_index = self.edge_canvas_ids.index(event_id)
         self.canvas.delete(self.text_id_line_start)
         self.canvas.delete(self.text_id_line_end)
+
 
 
 
