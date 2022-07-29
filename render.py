@@ -23,12 +23,18 @@ class Display:
         self.active_width = 3
         self.line_colour = 'black'
         self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
+        self.simulation_setup = False #flag to indicate if simulation has been setup before
+        self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
 
     #setup the control options
     def setup_controls(self):
         #create the control panel
-        self.controls = tk.Frame()
+        self.controls = tk.Frame(master=self.window)
         self.controls.pack(side = tk.LEFT)
+        #default file paths
+        default_nodes = 'nodes_basic.csv'
+        default_edges = 'edges_basic.csv'
+        default_schedule = 'schedule_basic.csv'
         #options
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
@@ -39,16 +45,19 @@ class Display:
         self.node_file_path_label = tk.Label(master=self.controls,text='NODE FILE PATH',fg='black',bg='white',width=20)
         self.node_file_path_label.pack()
         self.node_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.node_file_path_entry.insert(0,default_nodes)
         self.node_file_path_entry.pack()
         #label and input to import edge files
         self.edge_file_path_label = tk.Label(master=self.controls,text='EDGE FILE PATH',fg='black',bg='white',width=20)
         self.edge_file_path_label.pack()
         self.edge_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.edge_file_path_entry.insert(0,default_edges)
         self.edge_file_path_entry.pack()
         #label and input to import schedule files
         self.schedule_file_path_label = tk.Label(master=self.controls,text='SCHEDULE FILE PATH',fg='black',bg='white',width=20)
         self.schedule_file_path_label.pack()
         self.schedule_file_path_entry = tk.Entry(master=self.controls,fg='black',bg='white',width=20)
+        self.schedule_file_path_entry.insert(0,default_schedule)
         self.schedule_file_path_entry.pack()
         #control for importing files 
         self.import_files_button = tk.Button(master=self.controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
@@ -57,23 +66,71 @@ class Display:
         self.draw_network_button = tk.Button(master=self.controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click,width=20)
         self.draw_network_button.pack()
         #this button will start the simulation
-        self.start_simulation_button = tk.Button(master=self.controls,text="START SIMULATION",fg='black',bg='white',command=self.start_simulation_click,width=20)
-        self.start_simulation_button.pack()
+        self.setup_simulation_button = tk.Button(master=self.controls,text="SETUP SIMULATION",fg='black',bg='white',command=self.setup_simulation_click,width=20)
+        self.setup_simulation_button.pack()
         #this label will provide information to the user
         self.message_header = tk.Label(master=self.controls,text='MESSAGE',fg='black',bg='white',width=20)
         self.message_header.pack()
-        self.message = tk.Label(master=self.controls,text='',fg='black',bg='white',width=20)
+        self.message = tk.Label(master=self.controls,text='',fg='black',bg='white',width=20,height=5)
         self.message.pack()
 
     #run the simulation
-    def start_simulation_click(self):
+    def setup_simulation_click(self):
         time1 = time.time()
         self.sim_network = n.Network(self.nodes_csv,self.edges_csv,self.schedule_csv,self.verbose)
         time2 = time.time()
-        simulation_setup_message = "simulation setup in " + str(time2-time1) + " seconds"
+        simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
         self.message_update(simulation_setup_message)
-        
+        self.simulation_setup = True #flag to indicate that the simulation has been setup
+        self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
+    
+    #setup tools for exploring aspects of the simulated network which do not depend on actual simulation
+    #eg ideal journey times and paths, and passenger trip distribution
+    def setup_network_viz_tools(self):
+        self.network_viz = tk.Frame(master=self.controls)
+        self.network_viz.pack(side = tk.TOP)
+        self.display_mode_label = tk.Label(master=self.network_viz,text='DISPLAY MODE',fg='black',bg='white',width=20)
+        self.display_mode_label.pack()
+        #a button to choose viewing details about trip distribution
+        self.view_passengers_button =  tk.Button(master=self.network_viz,text="PASSENGERS",fg='black',bg='white',command=self.view_passengers_click,width=20)
+        self.view_passengers_button.pack()
+        #a button to choose viewing details about ideal journeys
+        self.view_journeys_button =  tk.Button(master=self.network_viz,text="JOURNEYS",fg='black',bg='white',command=self.view_journeys_click,width=20)
+        self.view_journeys_button.pack()
+        #a button to choose whether we are viewing information "from" a node or "too" a node
+        self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
+        self.too_from_select_button.pack()
+        self.from_node = True #True = from_node, False= too_node
+
+    #switch between viewing information too a node or from a node
+    def too_from_select_click(self):
+        if self.from_node:
+            self.from_node = False
+            self.too_from_select_button.config(text='TOO NODE')
+        else:
+            self.from_node = True
+            self.too_from_select_button.config(text='FROM NODE')
+
+    #function called by pressing the view passengers button, switch to view passengers viewing mode
+    def view_passengers_click(self):
+        if self.gui_mode == 'view_passengers': #if we already selected the mode selected by the button, switch to the default mode
+            self.gui_mode = 'view_nodes'
+            self.message_update("default view mode selected")
+        else:
+            self.gui_mode = 'view_passengers'
+            self.message_update("viewing passenger \n trip distribution")
+
+    #function called by pressing the view passengers button, switch to view journeys viewing mode
+    def view_journeys_click(self):
+        if self.gui_mode == 'view_journeys': #if we already selected the mode selected by the button, switch to the default mode
+            self.gui_mode = 'view_nodes'
+            self.message_update("default view mode selected")
+        else:
+            self.gui_mode = 'view_journeys'
+            self.message_update("viewing journey times")
+    
+
 
     #prints a message to the console only if the logging level is at a certain level (default=1)
     def log_print(self,message,log_level=1):
@@ -96,7 +153,6 @@ class Display:
             self.verbose_button.config(text='NO LOGGING')
             self.verbose = 0
         
-
     #import the requested files
     def import_files_click(self):
         #extract the file paths from the entry widgets
@@ -154,7 +210,6 @@ class Display:
         #print the message about the result of importing files
         self.message_update(import_files_message)
             
-
     #setup the window object
     def setup_window(self): 
         window = tk.Tk()
@@ -259,8 +314,6 @@ class Display:
             self.canvas.tag_bind(id,'<Leave>',self.edge_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.edge_canvas_ids[i] = id
 
-
-
     #calculate information about position of nodes
     def calculate_node_position(self):
         num_nodes = len(self.node_names)
@@ -268,12 +321,14 @@ class Display:
         self.nodes_y = []
         self.nodes_radii = [self.base_node_radius]*num_nodes #default size for nodes
         self.nodes_colour = [self.base_node_color]*num_nodes #default
-        self.node_canvas_ids = ['blank']*num_nodes 
+        self.node_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed next to all nodes
+        self.node_canvas_ids = ['blank']*num_nodes #canvas ids for the nodes themsleves
         for i in range(num_nodes):
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
             self.nodes_x.append(x)
             self.nodes_y.append(y)
 
+    #draw the nodes on the canvas
     def render_nodes(self):
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
@@ -288,18 +343,22 @@ class Display:
             id = self.canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=colour) #draw a circle to represent the node
             self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when the mouse is hovered over it
             self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
+            self.canvas.tag_bind(id,'<Button-1>',self.node_click) #depending on gui_mode, information about the nodes relationship to other nodes will be displayed
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
-
+            #self.origin_destination_trips
 
 
     def draw_network_click(self):
+        
         if self.first_render==False:
             self.erase_network_graph()
+        if self.simulation_setup:
+            self.erase_all_nodes_text()
         self.extract_nodes_graph()
         self.calculate_node_position()
         self.extract_edges_graph()
-        self.render_nodes()
         self.render_edges()
+        self.render_nodes()
         self.first_render = False
 
     #erase the network graph 
@@ -338,6 +397,53 @@ class Display:
         node_name = self.node_names[id_index]
         self.log_print('node left ' + node_name)
         self.canvas.delete(self.text_id) #delete the text popup from node_enter
+
+    #event for when we click on a node, outcome will depend on viewing mode
+    def node_click(self,event):
+        if self.gui_mode == 'view_nodes':
+            pass #nothing happens in this mode
+        
+        elif self.gui_mode == 'view_passengers':
+            #print('placeholder passenger click')
+            self.view_passengers_from_node(event)
+            
+
+        elif self.gui_mode == 'view_journeys':
+             print('placeholder journey click')
+
+    #display the number of passengers travelling from a node to all other nodes (per hour as currently setup)
+    def view_passengers_from_node(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id)
+        if self.from_node:
+            trips = self.sim_network.origin_destination_trips[id_index,:] #extract trips starting from this node
+        else:
+            trips = self.sim_network.origin_destination_trips[:,id_index] #extract trips going to this node
+
+        self.display_passengers_from_node(trips) #display the number of starting/ending at every other node
+    
+    #perform the actual rendering for the view_passengers_from_node function
+    def display_passengers_from_node(self,trips):
+        num_nodes = len(self.node_names)
+        self.erase_all_nodes_text() #clear any old text
+        self.node_text_ids = ['blank']*num_nodes
+        for i in range(num_nodes): #for every node
+            node_x = self.nodes_x[i]
+            node_y = self.nodes_y[i]
+            #name   = self.node_names[i]
+            num_passengers = "{:.2f}".format(trips[i])
+            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=num_passengers,state=tk.DISABLED) #create a text popup, which is not interactive
+
+    #erase text displayed next to all nodes (eg num passengers/journey time)
+    def erase_all_nodes_text(self):
+        print('erase all nodes called')
+        for id in self.node_text_ids:
+            if id!='blank':
+                self.canvas.delete(id)
+            
+
+
+
 
     #event for when we mouse over an edge, display text boxes above connected nodes
     def edge_enter(self,event):
