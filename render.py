@@ -2,6 +2,7 @@
 #responsible for displaying a visualisation of activity on the network
 
 import tkinter as tk
+import time as time
 import pandas as pd 
 import network as n
 import warnings as warnings
@@ -56,13 +57,23 @@ class Display:
         self.draw_network_button = tk.Button(master=self.controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click,width=20)
         self.draw_network_button.pack()
         #this button will start the simulation
-
-
+        self.start_simulation_button = tk.Button(master=self.controls,text="START SIMULATION",fg='black',bg='white',command=self.start_simulation_click,width=20)
+        self.start_simulation_button.pack()
         #this label will provide information to the user
         self.message_header = tk.Label(master=self.controls,text='MESSAGE',fg='black',bg='white',width=20)
         self.message_header.pack()
         self.message = tk.Label(master=self.controls,text='',fg='black',bg='white',width=20)
         self.message.pack()
+
+    #run the simulation
+    def start_simulation_click(self):
+        time1 = time.time()
+        self.sim_network = n.Network(self.nodes_csv,self.edges_csv,self.schedule_csv,self.verbose)
+        time2 = time.time()
+        simulation_setup_message = "simulation setup in " + str(time2-time1) + " seconds"
+        self.log_print(simulation_setup_message)
+        self.message_update(simulation_setup_message)
+        
 
     #prints a message to the console only if the logging level is at a certain level (default=1)
     def log_print(self,message,log_level=1):
@@ -122,13 +133,13 @@ class Display:
             try:
                 self.edges_csv = pd.read_csv(edge_files_path,thousands=r',')
             except:
-                import_files_message = import_files_message + " import of " + edge_files_path + " failed, not a valid csv file\n"
+                import_files_message = import_files_message + " import of " + edge_files_path + " failed  \n not a valid csv file\n"
                 import_successful = False
             #try and import the schedule
             try:
                 self.schedule_csv = pd.read_csv(schedule_files_path,thousands=r',')
             except:
-                import_files_message = import_files_message + " import of " + schedule_files_path + " failed, not a valid csv file\n"
+                import_files_message = import_files_message + " import of " + schedule_files_path + " failed  \n not a valid csv file\n"
                 import_successful = False
         
         #print a relevant message if import successful

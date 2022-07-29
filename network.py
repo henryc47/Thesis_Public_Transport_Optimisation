@@ -95,16 +95,18 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_file_path,edges_file_path,schedule_file_path,verbose=True):
-        #where we will store edges and nodes
-        self.verbose = verbose
+    def __init__(self,nodes_csv,edges_csv,schedule_csv,verbose=1):
+        #convert between verbosity standards
+        if verbose>=1:
+            self.verbose=True
+        else:
+            self.verbose=False
         time1 = time.time()
+        #where we will store edges and nodes
         self.edges = [] #list of edges 
         self.nodes = [] #list of nodes
         self.edge_names = [] #list of generated edge names
         #extract the raw data
-        nodes_csv = pd.read_csv(nodes_file_path,thousands=r',')
-        edges_csv = pd.read_csv(edges_file_path,thousands=r',')
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
         node_positions = nodes_csv["Location"].to_list() 
@@ -151,7 +153,7 @@ class Network:
         
         #now create the schedules
         time1 = time.time()
-        self.create_schedules(schedule_file_path)
+        self.create_schedules(schedule_csv)
         time2 = time.time()
         if self.verbose:
             print('time to extract schedules', time2-time1, ' seconds')
@@ -187,8 +189,7 @@ class Network:
         
 
     #create the schedule and functionality needed for scheduling
-    def create_schedules(self,schedule_file_path):
-        schedule_csv = pd.read_csv(schedule_file_path)
+    def create_schedules(self,schedule_csv):
         self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
         self.schedule_gaps = np.array(schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
         self.schedule_offsets = np.array(schedule_csv["Offset"].to_list()) #extract the offset from the start of time (the hour) and when the first service occurs
