@@ -89,6 +89,9 @@ class Display:
         if self.verbose==0:
             self.verbose_button.config(text='VERBOSE')
             self.verbose = 1
+        elif self.verbose==1:
+            self.verbose_button.config(text='SUPER VERBOSE')
+            self.verbose = 2
         else: #if verbosity already at highest level or is unset, select minimum verbosity 
             self.verbose_button.config(text='NO LOGGING')
             self.verbose = 0

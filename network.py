@@ -96,12 +96,8 @@ class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
     def __init__(self,nodes_csv,edges_csv,schedule_csv,verbose=1):
-        #convert between verbosity standards
-        if verbose>=1:
-            self.verbose=True
-        else:
-            self.verbose=False
         time1 = time.time()
+        self.verbose = verbose #import verbosity
         #where we will store edges and nodes
         self.edges = [] #list of edges 
         self.nodes = [] #list of nodes
@@ -138,24 +134,24 @@ class Network:
         num_hours = 12#
         self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour for each station
         time2 = time.time()
-        if self.verbose:
+        if self.verbose>=1:
             print('time to extract and process network data - ', time2-time1, ' seconds')
         time1 = time.time()
         self.find_distance_to_all()#find the shortest distance between all edges on the network
         time2 = time.time()
-        if self.verbose:
+        if self.verbose>=1:
             print('time to find ideal travel time between all nodes - ', time2-time1, ' seconds')
         time1 = time.time()
         self.create_origin_destination_matrix()#create the origin destination matrix for the network
         time2 = time.time()
-        if self.verbose:
+        if self.verbose>=1:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
         
         #now create the schedules
         time1 = time.time()
         self.create_schedules(schedule_csv)
         time2 = time.time()
-        if self.verbose:
+        if self.verbose>=1:
             print('time to extract schedules', time2-time1, ' seconds')
         
         #setup for vehicle simulations
@@ -176,7 +172,7 @@ class Network:
         self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
         self.vehicle_names.append(vehicle_name) #add the vehicles name to the list
         self.vehicles.append(vehicle.Vehicle(schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
-        if self.verbose:
+        if self.verbose>=1:
             print('a vehicle ', vehicle_name, ' has been created at ',start_node, ' at time ',self.time)
 
     #this function updates all the vehicle objects in the network
@@ -309,7 +305,8 @@ class Network:
     #create a matrix of travel demand between each node using the gravity model
     def create_origin_destination_matrix(self):
         num_passengers = np.array(self.node_passengers)
-        self.origin_destination_trips = gravity_assignment(num_passengers,num_passengers,self.distance_to_all,1,5) 
+        #use gravity model with 1D distance dropoff and 5 minute flat distance (these fudge factors are decided because they produce good results)
+        self.origin_destination_trips = gravity_assignment(starts=num_passengers,stops=num_passengers,distances=self.distance_to_all,distance_exponent=1,flat_distance=5,verbose=self.verbose) 
         return self.origin_destination_trips
 
     #get the index of a node name in the list of nodes
@@ -397,7 +394,7 @@ class Network:
 #flat distance is default amount of distance applied on top to all trips
 #iterations is how many iterations to converge
 #as yet unsure how well this handles 
-def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,verbose=True,required_accuracy=0.001,max_iterations=100,super_verbose=False):
+def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,verbose=1,required_accuracy=0.001,max_iterations=100):
     distances = (distances+flat_distance)**distance_exponent #calculate distance after transforms
     num_nodes = len(starts)
     destination_importance_factors = np.ones(num_nodes)#correction factor used to ensure convergence of number of trips to a node with recorded number of stops at that node
@@ -426,11 +423,11 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,ve
         abs_start_error = np.abs(start_correction_factor-1)
         abs_stop_error = np.abs(stop_correction_factor-1)
         if (max(abs_stop_error)<required_accuracy) and (max(abs_start_error)<required_accuracy):
-            if verbose:
+            if verbose>=1:
                 print("desired accuracy achieved after ", iter, " iterations")
             break
         elif iter>=max_iterations:
-            if verbose:
+            if verbose>=1:
                 print("failed to converge after ",max_iterations," iterations")
             break
         else:
@@ -451,7 +448,7 @@ def gravity_assignment(starts,stops,distances,distance_exponent,flat_distance,ve
         
         #print('after start calibration')
 
-    if super_verbose:
+    if verbose>=2:
         print('at the end') 
         calc_stops = np.sum(calc_trips,0)
         print('calc stops ',calc_stops)
