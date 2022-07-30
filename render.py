@@ -6,7 +6,7 @@ import time as time
 import pandas as pd 
 import network as n
 import warnings as warnings
-from os import path #for checking if file exists
+from os import path, times #for checking if file exists
 
 class Display:
 
@@ -82,8 +82,12 @@ class Display:
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
         self.message_update(simulation_setup_message)
+        if self.simulation_setup:   #only setup network visulisation tools if they have not already been created
+            pass
+        else:
+            self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
         self.simulation_setup = True #flag to indicate that the simulation has been setup
-        self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
+        
     
     #setup tools for exploring aspects of the simulated network which do not depend on actual simulation
     #eg ideal journey times and paths, and passenger trip distribution
@@ -404,39 +408,53 @@ class Display:
             pass #nothing happens in this mode
         
         elif self.gui_mode == 'view_passengers':
-            #print('placeholder passenger click')
             self.view_passengers_from_node(event)
             
 
         elif self.gui_mode == 'view_journeys':
-             print('placeholder journey click')
+             self.view_journeys_from_node(event)
 
     #display the number of passengers travelling from a node to all other nodes (per hour as currently setup)
     def view_passengers_from_node(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id)
         if self.from_node:
-            trips = self.sim_network.origin_destination_trips[id_index,:] #extract trips starting from this node
+            trips = self.sim_network.origin_destination_trips[id_index,:] #extract number of trips starting from this node
         else:
-            trips = self.sim_network.origin_destination_trips[:,id_index] #extract trips going to this node
+            trips = self.sim_network.origin_destination_trips[:,id_index] #extract number of trips going to this node
 
-        self.display_passengers_from_node(trips) #display the number of starting/ending at every other node
+        self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at every other node
     
+    def view_journeys_from_node(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id)
+        if self.from_node:
+            times = self.sim_network.distance_to_all[id_index,:] #extract journey times starting at this node
+        else:
+            times = self.sim_network.distance_to_all[:,id_index] #extract journey times going to this node
+        
+        self.display_text_info_above_node(times,mode='integer') #display journey times to/from every other node
+
     #perform the actual rendering for the view_passengers_from_node function
-    def display_passengers_from_node(self,trips):
+    def display_text_info_above_node(self,info,mode):
         num_nodes = len(self.node_names)
-        self.erase_all_nodes_text() #clear any old text
-        self.node_text_ids = ['blank']*num_nodes
+        self.erase_all_nodes_text() #clear any old text 
+        self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
         for i in range(num_nodes): #for every node
             node_x = self.nodes_x[i]
             node_y = self.nodes_y[i]
-            #name   = self.node_names[i]
-            num_passengers = "{:.2f}".format(trips[i])
-            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=num_passengers,state=tk.DISABLED) #create a text popup, which is not interactive
+            this_info = info[i]
+            if mode=='float':
+                this_info = "{:.2f}".format(this_info) #floating point data
+            elif mode=='integer':
+                this_info = str(this_info) #integer data
+            
+            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
+
+
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self):
-        print('erase all nodes called')
         for id in self.node_text_ids:
             if id!='blank':
                 self.canvas.delete(id)
