@@ -25,6 +25,7 @@ class Display:
         self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
         self.simulation_setup = False #flag to indicate if simulation has been setup before
         self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
+        self.last_node_left_click_id = -1 #index of last node left-click, -1 indicates that no nodes have been clicked yet
 
     #setup the control options
     def setup_controls(self):
@@ -347,7 +348,8 @@ class Display:
             id = self.canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=colour) #draw a circle to represent the node
             self.canvas.tag_bind(id,'<Enter>',self.node_enter) #some information about the node will be displayed when the mouse is hovered over it
             self.canvas.tag_bind(id,'<Leave>',self.node_leave) #this information will stop being displayed when the mouse is no longer over the node
-            self.canvas.tag_bind(id,'<Button-1>',self.node_click) #depending on gui_mode, information about the nodes relationship to other nodes will be displayed
+            self.canvas.tag_bind(id,'<Button-1>',self.node_left_click) #depending on gui_mode, information about the nodes relationship to other nodes will be displayed
+            self.canvas.tag_bind(id,'<Button-2>',self.node_right_click) #depending on gui_mode, information about the nodes relationship to other nodes will be displayed
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
             #self.origin_destination_trips
 
@@ -402,22 +404,31 @@ class Display:
         self.log_print('node left ' + node_name)
         self.canvas.delete(self.text_id) #delete the text popup from node_enter
 
-    #event for when we click on a node, outcome will depend on viewing mode
-    def node_click(self,event):
-        if self.gui_mode == 'view_nodes':
-            pass #nothing happens in this mode
-        
-        elif self.gui_mode == 'view_passengers':
-            self.view_passengers_from_node(event)
+    #event for when we left-click on a node, outcome will depend on viewing mode
+    def node_left_click(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
+        if self.last_node_left_click_id == id_index: #if the same node has been clicked on again
+            self.erase_all_nodes_text() #reset all text
+        else: #otherwise, display info text for new node
+            if self.gui_mode == 'view_nodes':
+                pass #nothing happens in this mode
             
+            elif self.gui_mode == 'view_passengers':
+                self.view_passengers_from_node(id_index)
+                
 
-        elif self.gui_mode == 'view_journeys':
-             self.view_journeys_from_node(event)
+            elif self.gui_mode == 'view_journeys':
+                self.view_journeys_from_node(id_index)
+
+            self.last_node_left_click_id = id_index #record this was the last node we clicked on
+
+    #event for when we right-click on a node
+    def node_right_click(self,event):
+        print('placeholder for node right click')
 
     #display the number of passengers travelling from a node to all other nodes (per hour as currently setup)
-    def view_passengers_from_node(self,event):
-        event_id = event.widget.find_withtag('current')[0]
-        id_index = self.node_canvas_ids.index(event_id)
+    def view_passengers_from_node(self,id_index):
         if self.from_node:
             trips = self.sim_network.origin_destination_trips[id_index,:] #extract number of trips starting from this node
         else:
@@ -425,9 +436,7 @@ class Display:
 
         self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at every other node
     
-    def view_journeys_from_node(self,event):
-        event_id = event.widget.find_withtag('current')[0]
-        id_index = self.node_canvas_ids.index(event_id)
+    def view_journeys_from_node(self,id_index):
         if self.from_node:
             times = self.sim_network.distance_to_all[id_index,:] #extract journey times starting at this node
         else:
@@ -455,6 +464,7 @@ class Display:
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self):
+        self.last_node_left_click_id = -1 #we are deleting all nodes text, so reset if any nodes have been clicked
         for id in self.node_text_ids:
             if id!='blank':
                 self.canvas.delete(id)
