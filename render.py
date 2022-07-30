@@ -108,22 +108,38 @@ class Display:
         self.too_from_select_button.pack()
         self.from_node = True #True = from_node, False= too_node
 
+    #update node rendering without changing the id of the node whose information we are using
+    def update_render_same_node(self):
+        #don't update if no node-specific text was being displayed in the first place
+        if self.last_node_left_click_id == -1:
+            pass
+        else:         
+            last_click_id = self.last_node_left_click_id
+            self.erase_all_nodes_text() #erase all text already displayed
+            self.last_node_left_click_id = -1 #set this to -1 so update_nodes_viewing_mode correctly renders with a different mode (note keep this here for redunancy in case end up removing the reset from erase_all_nodes_text)
+            self.update_nodes_viewing_mode(last_click_id) #update the render
+            self.last_node_left_click_id = last_click_id #set last left click id back to it's previous value so we can still remove info by clicking on that node again
+
     #switch between viewing information too a node or from a node
     def too_from_select_click(self):
         if self.from_node:
             self.from_node = False
             self.too_from_select_button.config(text='TOO NODE')
+            self.update_render_same_node()
         else:
             self.from_node = True
             self.too_from_select_button.config(text='FROM NODE')
+            self.update_render_same_node()
 
     #function called by pressing the view passengers button, switch to view passengers viewing mode
     def view_passengers_click(self):
         if self.gui_mode == 'view_passengers': #if we already selected the mode selected by the button, switch to the default mode
             self.gui_mode = 'view_nodes'
+            self.erase_all_nodes_text()
             self.message_update("default view mode selected")
         else:
             self.gui_mode = 'view_passengers'
+            self.update_render_same_node()
             self.message_update("viewing passenger \n trip distribution")
 
     #function called by pressing the view passengers button, switch to view journeys viewing mode
@@ -134,6 +150,7 @@ class Display:
         else:
             self.gui_mode = 'view_journeys'
             self.message_update("viewing journey times")
+            self.update_render_same_node()
     
 
 
@@ -408,21 +425,22 @@ class Display:
     def node_left_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
+        self.update_nodes_viewing_mode(id_index)
+
+    #update the display of nodes based on viewing mode
+    def update_nodes_viewing_mode(self,id_index):
         if self.last_node_left_click_id == id_index: #if the same node has been clicked on again
             self.erase_all_nodes_text() #reset all text
+            self.last_node_left_click_id = -1
         else: #otherwise, display info text for new node
             if self.gui_mode == 'view_nodes':
                 pass #nothing happens in this mode
-            
             elif self.gui_mode == 'view_passengers':
                 self.view_passengers_from_node(id_index)
-                
-
             elif self.gui_mode == 'view_journeys':
                 self.view_journeys_from_node(id_index)
-
             self.last_node_left_click_id = id_index #record this was the last node we clicked on
-
+    
     #event for when we right-click on a node
     def node_right_click(self,event):
         print('placeholder for node right click')
