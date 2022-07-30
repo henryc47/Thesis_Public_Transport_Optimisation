@@ -107,6 +107,22 @@ class Display:
         self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
         self.too_from_select_button.pack()
         self.from_node = True #True = from_node, False= too_node
+        #a button to select whether to use numeric text to provide information about node relationships
+        self.numeric_text_button = tk.Button(master=self.network_viz,text="NUMERIC INFO",fg='black',bg='white',command=self.numeric_text_click,width=20)
+        self.numeric_text_button.pack()
+        self.numeric_text = True
+
+    #command for button to switch numeric information (eg num passengers) being displayed when nodes clicked on
+    def numeric_text_click(self):
+        if self.numeric_text: #switch to no numeric info mode
+            self.numeric_text = False
+            self.numeric_text_button.config(text='NO NUMERIC INFO')
+            self.update_render_same_node()
+        else: #switch to numeric info mode
+            self.numeric_text = True
+            self.numeric_text_button.config(text='NUMERIC INFO')
+            self.update_render_same_node()
+
 
     #update node rendering without changing the id of the node whose information we are using
     def update_render_same_node(self):
@@ -434,7 +450,7 @@ class Display:
             self.last_node_left_click_id = -1
         else: #otherwise, display info text for new node
             if self.gui_mode == 'view_nodes':
-                pass #nothing happens in this mode
+                self.erase_all_nodes_text() #reset all text, as not used in this mode
             elif self.gui_mode == 'view_passengers':
                 self.view_passengers_from_node(id_index)
             elif self.gui_mode == 'view_journeys':
@@ -465,18 +481,19 @@ class Display:
     #perform the actual rendering for the view_passengers_from_node function
     def display_text_info_above_node(self,info,mode):
         num_nodes = len(self.node_names)
-        self.erase_all_nodes_text() #clear any old text 
-        self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
-        for i in range(num_nodes): #for every node
-            node_x = self.nodes_x[i]
-            node_y = self.nodes_y[i]
-            this_info = info[i]
-            if mode=='float':
-                this_info = "{:.2f}".format(this_info) #floating point data
-            elif mode=='integer':
-                this_info = str(this_info) #integer data
-            
-            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
+        self.erase_all_nodes_text() #clear any old text
+        if self.numeric_text: #only display numeric text above node if we are in a viewing mode that allows that
+            self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
+            for i in range(num_nodes): #for every node
+                node_x = self.nodes_x[i]
+                node_y = self.nodes_y[i]
+                this_info = info[i]
+                if mode=='float':
+                    this_info = "{:.2f}".format(this_info) #floating point data
+                elif mode=='integer':
+                    this_info = str(this_info) #integer data
+                
+                self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
 
 
 
