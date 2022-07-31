@@ -3,7 +3,8 @@
 
 import tkinter as tk
 import time as time
-import pandas as pd 
+import pandas as pd
+import numpy as np 
 import network as n
 import warnings as warnings
 from os import path, times #for checking if file exists
@@ -16,8 +17,10 @@ class Display:
         self.render_canvas() #setup the canvas on which we will draw our visulisation
         self.setup_controls() #setup the widgets which will allow us to control the simulation and canvas 
         #display constants 
-        self.max_circle_radius = 20
+        self.max_node_radius = 30
+        self.custom_node_exponent = 3 #how does node radii scale with amount of stuff happening at that node
         self.base_node_radius = 5
+        self.min_node_radius = 2
         self.base_node_color = 'grey'
         self.line_width = 2
         self.active_width = 3
@@ -111,6 +114,11 @@ class Display:
         self.numeric_text_button = tk.Button(master=self.network_viz,text="NUMERIC INFO",fg='black',bg='white',command=self.numeric_text_click,width=20)
         self.numeric_text_button.pack()
         self.numeric_text = True
+        #a button to select whether to use the size of nodes to provide information about node relationships
+        self.node_size_button = tk.Button(master=self.network_viz,text="CONSTANT NODE SIZE",fg='black',bg='white',command=self.node_size_click,width=20,height=2)
+        self.node_size_button.pack()
+        self.node_size_type = "constant" #by default, nodes will be a constant size
+
 
     #command for button to switch numeric information (eg num passengers) being displayed when nodes clicked on
     def numeric_text_click(self):
@@ -123,8 +131,73 @@ class Display:
             self.numeric_text_button.config(text='NUMERIC INFO')
             self.update_render_same_node()
 
+    #command for button to switch between options for setting node size based on number of passengers
+    def node_size_click(self):
+        if self.node_size_type == "constant":
+            #switch to modes where node size based on traffic coming too/from the clicked node
+            self.node_size_type = "node_relative"
+            if self.from_node:
+                self.node_size_button.config(text="NODE SIZE TRAFFIC \n FROM CLICKED NODE")
+            else:
+                self.node_size_button.config(text="NODE SIZE TRAFFIC \n TO CLICKED NODE")
+        elif self.node_size_type == "node_relative":
+            #switch to a mode where node size is based on total traffic too/from each node
+            self.node_size_type = "node_total"     
+            if self.from_node:   
+                self.node_size_button.config(text="NODE SIZE TOTAL TRAFFIC \n FROM NODE")
+            else:
+                self.node_size_button.config(text="NODE SIZE TOTAL TRAFFIC \n TO NODE")
+        else:
+            self.node_size_type = "constant"
+            self.node_size_button.config(text="CONSTANT NODE SIZE")
+        
+        #rerender the nodes to be of the correct size
+        self.set_node_sizes()
 
-    #update node rendering without changing the id of the node whose information we are using
+    #set node sizes in accordance with the mode choosen
+    def set_node_sizes(self):
+        num_nodes = len(self.node_names)
+        if self.node_size_type =="constant":
+            self.nodes_radii = [self.base_node_radius]*num_nodes
+            
+        elif self.node_size_type == "node_relative":
+            if self.last_node_left_click_id == -1:
+                self.nodes_radii = [self.base_node_radius]*num_nodes
+            else:
+                if self.from_node:
+                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_id,:] #extract number of trips starting from this node
+                    total = np.sum(trips)
+                else:
+                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_id] #extract number of trips going to this node
+                    total = np.sum(trips)
+                self.calculate_node_sizes(trips,total)
+
+        elif self.node_size_type == "node_total":
+            total = np.sum(self.sim_network.origin_destination_trips) #use the total number of trips
+            if self.from_node:
+                trips = np.sum(self.sim_network.origin_destination_trips,0) #extract number of trips starting from all nodes
+            else:
+                trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
+            self.calculate_node_sizes(trips,total)
+        else:
+            warnings.warn("node_size_type " + self.node_size_type + " not yet impleneted using constant node size instead")
+            #other modes not yet implemented, use constant node sizes instead
+            self.nodes_radii = [self.base_node_radius]*num_nodes
+
+        self.render_nodes() #now rerender the nodes so they will be the correct size
+
+    #calculate_node_sizes
+    def calculate_node_sizes(self,nodes_quantity,total_quantity):
+        num_nodes = len(nodes_quantity)
+        for i in range(num_nodes):
+            node_fraction = nodes_quantity[i]/total_quantity#fraction of total amount occuring at that node
+            self.nodes_radii[i] = (node_fraction**(1/self.custom_node_exponent))*self.max_node_radius
+            if self.nodes_radii[i] < self.min_node_radius: #enforce the minimum size of a node
+                self.nodes_radii[i] = self.min_node_radius
+
+
+
+    #update node text rendering without changing the id of the node whose information we are using
     def update_render_same_node(self):
         #don't update if no node-specific text was being displayed in the first place
         if self.last_node_left_click_id == -1:
@@ -298,8 +371,8 @@ class Display:
         range_latitude = max_latitude-min_latitude
         range_longitude = max_longitude-min_longitude
         #extract the scaling factor between the canvas and the real world
-        pixels_per_degree_vertical = (self.canvas_height-(self.max_circle_radius*4))/range_latitude
-        pixels_per_degree_horizontal = (self.canvas_width-(self.max_circle_radius*4))/range_longitude
+        pixels_per_degree_vertical = (self.canvas_height-(self.max_node_radius*4))/range_latitude
+        pixels_per_degree_horizontal = (self.canvas_width-(self.max_node_radius*4))/range_longitude
         #the lower value is the limiting factor for an undistorted map
         self.pixels_per_degree = min(pixels_per_degree_vertical,pixels_per_degree_horizontal) 
 
@@ -340,7 +413,6 @@ class Display:
             end_index = self.edge_end_indices[i]
             start_x = self.nodes_x[start_index]
             start_y = self.nodes_y[start_index]
-            start_size = self.nodes_radii[start_index]
             end_x = self.nodes_x[end_index]
             end_y = self.nodes_y[end_index]
             end_size = self.nodes_radii[end_index]
@@ -375,6 +447,11 @@ class Display:
             y = self.nodes_y[i]
             radius = self.nodes_radii[i]
             colour = self.nodes_colour[i]
+            try:
+                self.canvas.delete(self.text_id) #delete the text popup if one exists
+            except AttributeError:
+                pass #if it does not exist, don't delete it
+            #delete all old node objects
             if self.node_canvas_ids[i]!='blank':
                 #delete the old oval object if one exists
                 self.canvas.delete(self.node_canvas_ids[i])
@@ -441,7 +518,9 @@ class Display:
     def node_left_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
-        self.update_nodes_viewing_mode(id_index)
+        self.update_nodes_viewing_mode(id_index) #update the viewing mode due to the click
+        #rerender the nodes to be of the correct size after the new click
+        self.set_node_sizes()
 
     #update the display of nodes based on viewing mode
     def update_nodes_viewing_mode(self,id_index):
