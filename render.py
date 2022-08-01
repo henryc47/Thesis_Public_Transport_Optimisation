@@ -21,7 +21,7 @@ class Display:
         self.custom_node_exponent = 3 #how does node radii scale with amount of stuff happening at that node
         self.base_node_radius = 5
         self.min_node_radius = 2
-        self.base_node_color = 'grey'
+        self.base_node_colour = 'grey'
         self.line_width = 2
         self.active_width = 3
         self.line_colour = 'black'
@@ -109,16 +109,19 @@ class Display:
         #a button to choose whether we are viewing information "from" a node or "too" a node
         self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
         self.too_from_select_button.pack()
-        self.from_node = True #True = from_node, False= too_node
+        self.from_node = True #True = from_node, False= too_node  
         #a button to select whether to use numeric text to provide information about node relationships
         self.numeric_text_button = tk.Button(master=self.network_viz,text="NUMERIC INFO",fg='black',bg='white',command=self.numeric_text_click,width=20)
         self.numeric_text_button.pack()
         self.numeric_text = True
-        #a button to select whether to use the size of nodes to provide information about node relationships
+        #a button to select whether to use the size of nodes to provide information about node relationships (currently limited to passenger flows)
         self.node_size_button = tk.Button(master=self.network_viz,text="CONSTANT NODE SIZE",fg='black',bg='white',command=self.node_size_click,width=20,height=2)
         self.node_size_button.pack()
         self.node_size_type = "constant" #by default, nodes will be a constant size
-
+        #a button to select whether to use the colour of nodes to provide information about node relationships (currently limited to travel distance)
+        self.node_colour_button = tk.Button(master=self.network_viz,text="CONSTANT NODE COLOUR",fg='black',bg='white',command=self.node_colour_click,width=20,height=2)
+        self.node_colour_button.pack()
+        self.node_colour_type = "constant"#by default, nodes will be a constant colour
 
     #command for button to switch numeric information (eg num passengers) being displayed when nodes clicked on
     def numeric_text_click(self):
@@ -154,6 +157,37 @@ class Display:
         #rerender the nodes to be of the correct size
         self.set_node_sizes()
 
+
+    def node_colour_click(self):
+        if self.node_colour_type == "constant":
+            #switch to mode where node colour is based on journey distance to/from clicked node
+            self.node_colour_type = "distance"
+            if self.from_node:
+                self.node_colour_button.config(text="NODE COLOUR DISTANCE \n FROM CLICKED NODE")
+            else:
+                self.node_size_button.config(text="NODE COLOUR DISTANCE \n TO CLICKED NODE")
+        elif self.node_colour_type == "distance":
+            #switch to mode where node colour is based on total traffic coming too/from the clicked node
+            self.node_colour_type = "node_relative"
+            if self.from_node:
+                self.node_colour_button.config(text="NODE COLOUR TRAFFIC \n FROM CLICKED NODE")
+            else:
+                self.node_colour_button.config(text="NODE COLOUR TRAFFIC \n TO CLICKED NODE")
+        elif self.node_colour_type == "node_relative":
+            #switch to a mode where node colour is based on total traffic too/from each node
+            self.node_colour_type = "node_total"
+            if self.from_node:   
+                self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n FROM NODE")
+            else:
+                self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n TO NODE") 
+
+        elif self.node_colour_type=="node_total":
+            self.node_colour_type = "constant"
+            self.node_colour_button.config(text="CONSTANT NODE COLOUR")
+        
+         #rerender the nodes to be of the correct colour
+        self.set_node_colours()
+
     #set node sizes in accordance with the mode choosen
     def set_node_sizes(self):
         num_nodes = len(self.node_names)
@@ -163,6 +197,7 @@ class Display:
         elif self.node_size_type == "node_relative":
             if self.last_node_left_click_id == -1:
                 self.nodes_radii = [self.base_node_radius]*num_nodes
+                self.message_update("click on a node to set node sizes based on traffic too/from that node") #node sizes will not be updated till users click on a node
             else:
                 if self.from_node:
                     trips = self.sim_network.origin_destination_trips[self.last_node_left_click_id,:] #extract number of trips starting from this node
@@ -184,16 +219,91 @@ class Display:
             #other modes not yet implemented, use constant node sizes instead
             self.nodes_radii = [self.base_node_radius]*num_nodes
 
-        self.render_nodes() #now rerender the nodes so they will be the correct size
+
+    #set node colours in accordance with the mode choosen
+    def set_node_colours(self):
+        num_nodes = len(self.node_names)
+        if self.node_colour_type =="constant":
+            self.nodes_colour = [self.base_node_colour]*num_nodes
+        
+        #set colour based on number of journeys too/from node to clicked node
+        elif self.node_colour_type == "node_relative":
+            if self.last_node_left_click_id == -1:
+                self.nodes_colour = [self.base_node_colour]*num_nodes    
+                self.message_update("click on a node to set node colours based on traffic too/from that node") #users need to select a node to update the colours
+            else:
+                if self.from_node:
+                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_id,:] #extract number of trips starting from this node
+                    total = np.sum(trips)
+                else:
+                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_id] #extract number of trips going to this node
+                    total = np.sum(trips)
+                self.calculate_node_colours(trips,total)
+
+        #set colour based on journeys too/from node in total
+        elif self.node_colour_type == "node_total":
+            total = np.sum(self.sim_network.origin_destination_trips) #use the total number of trips
+            if self.from_node:
+                trips = np.sum(self.sim_network.origin_destination_trips,0) #extract number of trips starting from all nodes
+            else:
+                trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
+            self.calculate_node_colours(trips,total)
+
+        elif self.node_colour_type == "distance":
+            if self.last_node_left_click_id == -1:
+                self.nodes_colour = [self.base_node_colour]*num_nodes    
+                self.message_update("click on a node to set node colours based on distance too/from that node") #users need to select a node to update the colours
+            else:
+                max_time = np.amax(self.sim_network.distance_to_all)
+                if self.from_node:
+                    times = self.sim_network.distance_to_all[self.last_node_left_click_id,:] #extract journey times starting at this node
+                else:
+                    times = self.sim_network.distance_to_all[:,self.last_node_left_click_id] #extract journey times going to this node
+                self.calculate_node_colours(times,max_time,mode='linear')
+
+    #wrapper that recalculates node sizes and colours, and redraws the nodes
+    def update_nodes(self):
+        self.set_node_sizes()
+        self.set_node_colours()
+        self.render_nodes()
+
+
 
     #calculate_node_sizes
-    def calculate_node_sizes(self,nodes_quantity,total_quantity):
+    def calculate_node_sizes(self,nodes_quantity,total_quantity,mode='default'):
         num_nodes = len(nodes_quantity)
         for i in range(num_nodes):
             node_fraction = nodes_quantity[i]/total_quantity#fraction of total amount occuring at that node
             self.nodes_radii[i] = (node_fraction**(1/self.custom_node_exponent))*self.max_node_radius
             if self.nodes_radii[i] < self.min_node_radius: #enforce the minimum size of a node
                 self.nodes_radii[i] = self.min_node_radius
+
+    #calculate node colour
+    def calculate_node_colours(self,nodes_quantity,total_quantity,mode='default'):
+        num_nodes = len(nodes_quantity)
+        for i in range(num_nodes):
+            node_fraction = nodes_quantity[i]/total_quantity#fraction of total amount occuring at that node
+            #determine how far along the spectrum from blue to red through green the colour is
+            if mode=='default': #use custom scaling (by default cubic), good for passenger volumes
+                node_colour_fraction = (node_fraction**(1/self.custom_node_exponent))
+            elif mode=='linear': #use linear scaling, good for distance to travel in smaller maps
+                node_colour_fraction = node_fraction
+            #convert node_colour_fraction to RGB, blue at 0, green at 0.3, red at 1
+
+            midpoint = 0.3 #midpoint of colour scale is green
+            if node_fraction<=midpoint:
+                #colour scale is from blue to green
+                green = node_fraction/midpoint
+                blue =  1-green
+                red = 0
+            elif node_fraction>midpoint:
+                #colour scale is from green to red
+                red = (node_fraction-midpoint)/(1-midpoint)
+                green = 1-red
+                blue = 0
+            
+            #convert 24 bit RGB colour to the hex format expected by tkinter 
+            self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
 
 
@@ -430,7 +540,7 @@ class Display:
         self.nodes_x = []
         self.nodes_y = []
         self.nodes_radii = [self.base_node_radius]*num_nodes #default size for nodes
-        self.nodes_colour = [self.base_node_color]*num_nodes #default
+        self.nodes_colour = [self.base_node_colour]*num_nodes #default
         self.node_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed next to all nodes
         self.node_canvas_ids = ['blank']*num_nodes #canvas ids for the nodes themsleves
         for i in range(num_nodes):
@@ -520,7 +630,7 @@ class Display:
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
         self.update_nodes_viewing_mode(id_index) #update the viewing mode due to the click
         #rerender the nodes to be of the correct size after the new click
-        self.set_node_sizes()
+        self.update_nodes()
 
     #update the display of nodes based on viewing mode
     def update_nodes_viewing_mode(self,id_index):
@@ -632,5 +742,23 @@ class Display:
         self.render_edges()
 
 
+#convert 24bit RGB colour to the hex format used by tkinter
+def RGB_TO_TK_HEX(red,green,blue):
+    #convert to hex and remove leading 0x
+    red_string = int_to_2hex(red) #extract from 3rd element in string to last element
+    green_string = int_to_2hex(green)
+    blue_string = int_to_2hex(blue)
+    output_string = "#" + red_string + green_string + blue_string #combine components into the correct format
+    return output_string
 
+#converts integers to hexs of at least length 2(so can represent numbers 0-255)
+def int_to_2hex(num):#converts an integer to a length 2 hex
+    string = hex(num)[2:]
+    #prepend 0's if hex is too short
+    if len(string)==1:
+        string = '0' + string
+    elif len(string)==0:
+        string = '00'
+    
+    return string
 
