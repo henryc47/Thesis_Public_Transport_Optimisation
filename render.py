@@ -23,12 +23,15 @@ class Display:
         self.min_node_radius = 2
         self.base_node_colour = 'grey'
         self.line_width = 2
-        self.active_width = 3
+        self.active_width_addition = 2 #how much will the line grow when it is active 
         self.line_colour = 'black'
+        self.path_line_colour = 'magenta' #colour an edge which is part of the path
+        self.path_line_width = 3
         self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
         self.simulation_setup = False #flag to indicate if simulation has been setup before
         self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
         self.last_node_left_click_id = -1 #index of last node left-click, -1 indicates that no nodes have been clicked yet
+        self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
 
     #setup the control options
     def setup_controls(self):
@@ -350,7 +353,7 @@ class Display:
             self.gui_mode = 'view_journeys'
             self.message_update("viewing journey times")
             self.update_render_same_node()
-    
+
 
 
     #prints a message to the console only if the logging level is at a certain level (default=1)
@@ -491,6 +494,8 @@ class Display:
     def extract_edges_graph(self):
         edge_starts = self.edges_csv["Start"].to_list()
         edge_ends = self.edges_csv["End"].to_list()
+        self.edge_names = [] #name of the edge from start to end
+        self.edge_reverse_names = [] #name of the edge from end to start
         num_edges = len(edge_starts)#for the purpose of plotting, a bidirectional edge is one edge
         #find the index of edge starts and ends in the list of nodes
         self.edge_start_indices = []
@@ -510,10 +515,14 @@ class Display:
                 warnings.warn('edge end ', edge_ends[i],' not present in list of node names')
                 end_index = -1 #this will cause a crash later (by design), as our program contains a non-existent end node
 
+            self.edge_names.append(edge_starts[i] + ' to ' + edge_ends[i])
+            self.edge_reverse_names.append(edge_ends[i] + ' to ' + edge_starts[i])
             self.edge_start_indices.append(start_index)
             self.edge_end_indices.append(end_index)
 
         self.edge_canvas_ids = ['blank']*num_edges #store edge canvas ids in a list so we can delete them later, 'blank' indicates they have not yet been created
+        self.edge_widths = [self.line_width]*num_edges #store the default width of every edge
+        self.edge_colours = [self.line_colour]*num_edges #store the default colour of every edge
 
     #needs to be run after edges have been extracted and nodes have been drawn to work correctly
     def render_edges(self):
@@ -525,11 +534,14 @@ class Display:
             start_y = self.nodes_y[start_index]
             end_x = self.nodes_x[end_index]
             end_y = self.nodes_y[end_index]
-            end_size = self.nodes_radii[end_index]
+            colour = self.edge_colours[i]
+            width = self.edge_widths[i]
+            #end_size = self.nodes_radii[end_index] #unused, we draw nodes over edges so no need to crop the edges
             if self.edge_canvas_ids[i]!='blank':
                 #delete the old line object if one exists
                 self.canvas.delete(self.edge_canvas_ids[i])
-            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=self.line_colour,disableddash=self.line_width,activewidth=self.active_width) #draw a circle to represent the node
+
+            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=colour,disableddash=width,activewidth=width+self.active_width_addition) #draw a line to represent the edge
             self.canvas.tag_bind(id,'<Enter>',self.edge_enter) #some information about the start and end nodes will be displayed when we mouse over an edge
             self.canvas.tag_bind(id,'<Leave>',self.edge_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.edge_canvas_ids[i] = id
@@ -597,7 +609,10 @@ class Display:
         for id in self.node_canvas_ids:
             if id!='blank':
                 self.canvas.delete(id)
-        
+    
+
+
+
     def convert_lat_long_to_x_y(self,latitude,longitude):
         latitude_offset = latitude-self.central_latitude
         longitude_offset = longitude-self.central_longitude
@@ -723,10 +738,58 @@ class Display:
         self.canvas.delete(self.text_id_line_start)
         self.canvas.delete(self.text_id_line_end)
 
-    #extract the path between two nodes
-    def extract_path_nodes(self,start_node_id,end_node_id):
+    #extract the path between two node ids
+    def extract_path_node_ids(self,start_node_id,end_node_id):
         edges_path = self.sim_network.paths_to_all[start_node_id][end_node_id]
         return edges_path
+
+    #extract the path between two nodes
+    def extract_path_nodes(self,start_node,end_node):
+        start_id = self.node_names.index(start_node) #get the id's of the starting node
+        end_id = self.node_names.index(end_node) #and the ending node
+        edges_path = self.extract_path_node_ids(start_id,end_id)
+        return edges_path
+
+    #reset edge names and colours to their default values
+    def reset_edges_plot(self):
+        num_edges = len(self.edge_names)
+        for i in range(num_edges):
+            self.edge_colours[i] = self.line_colour
+            self.edge_widths[i] = self.line_width
+
+
+    #plot the path between two nodes
+    def plot_path_nodes(self,start_node,end_node,text_nodes=True,arrows='auto'):
+        #if text_nodes = True, we select the path using the verbose names of the nodes, rather than just their index
+        if text_nodes:
+            edges_path = self.extract_path_nodes(start_node,end_node)
+        else:
+            edges_path = self.extract_path_node_ids(start_node,end_node)
+        #will arrows be present on plotted path
+        if arrows=='auto':
+            arrows = self.path_edge_arrows #by default, choose initally defined default option
+
+        for edge_name in edges_path:
+            #go through all the edges in the edges path
+            try:
+                #if the edge is from start to finish
+                edge_index = self.edge_names.index(edge_name)
+                reverse = False
+            except ValueError: 
+                #if the edge is from finish to start
+                try:
+                    edge_index = self.edge_reverse_names.index(edge_name)
+                    reverse = True
+                except ValueError:
+                    #edge is in neither list
+                    warnings.warn('edge ',edge_name,' not present in list of edges')
+                    continue
+            
+            #now update edge names and colours for nodes on the path
+            self.edge_colours[edge_index] = self.path_line_colour
+            self.edge_widths[edge_index] = self.path_line_width
+
+
 
 
 
@@ -766,4 +829,15 @@ def int_to_2hex(num):#converts an integer to a length 2 hex
         string = '00'
     
     return string
+
+#utility which takes as input an edge name and produces the name an edge going between the same nodes but in the opposite direction
+#note this utility cannot handle destinations where " to " is part of the name
+def reverse_edge_name(edge_name):
+    divider_string = ' to '
+    divider_start = edge_name.find(divider_string) #start of the division between origin and destination
+    origin = edge_name[0:divider_start] #extract origin name
+    destination = edge_name[divider_start+len(divider_string):] #and destination name
+    output_string = destination + divider_string + origin #create the reversed string
+    return output_string 
+    
 
