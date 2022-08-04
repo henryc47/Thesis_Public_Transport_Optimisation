@@ -65,11 +65,15 @@ class Node:
         except ValueError: #edge name not in list of provided eges
             print('edge ', edge_name, ' not in list of edges starting at this node')
             return False #False to indicate search operation unsuccessful
-    
+
+
     #return the time taken to travel to all neighbouring nodes and the names of the destination 
     def provide_nodes_time(self):
         return (self.edge_times,self.edge_destinations)
-        
+
+    #as above, but also provides the name of the connecting edge
+    def provide_nodes_time_edge_name(self):
+        return (self.edge_times,self.edge_destinations,self.edge_names)
 
     #return the time taken to travel to a destination as well as the edge to reach it
     #for this function to work correctly, edge names must be unique
@@ -137,7 +141,7 @@ class Network:
         if self.verbose>=1:
             print('time to extract and process network data - ', time2-time1, ' seconds')
         time1 = time.time()
-        self.find_distance_to_all()#find the shortest distance between all edges on the network
+        self.find_distance_to_all_path()#find the shortest distance between all edges on the network, as well as the paths between them
         time2 = time.time()
         if self.verbose>=1:
             print('time to find ideal travel time between all nodes - ', time2-time1, ' seconds')
@@ -290,6 +294,51 @@ class Network:
         
         return distance_to_nodes #return the distance to all the nodes
 
+    #this is the same as find_distance_dijistraka, but it also stores the path as a list of nodes
+    def find_distance_dijistraka_path(self,start_node_name):
+        #try and find the starting node in the list of all nodes
+        try:
+            start_index = self.node_names.index(start_node_name)
+        except ValueError:
+            #handle case where starting name not in list of names
+            warnings.warn('start_node_name  ', start_node_name, 'is not in the list of node names in this network')
+            return False #return false to indicate error
+        #if there was not an error, continue
+        num_nodes = len(self.node_names)
+        distance_to_nodes = np.ones(num_nodes)*np.inf #set initial cost to reach to be infinite, index order is same as in node names
+        #create paths array, this will be a list of paths, with each path a list of edges
+        paths = [[] for _ in range(num_nodes)]
+        nodes_visited = np.zeros(num_nodes) #has node been visited yet, 0 if false, infinite if true
+        distance_to_nodes[start_index] =  0 #cost to reach starting node is of course zero
+        while True:
+            distance_to_use = distance_to_nodes + nodes_visited#consider the cost to reach already visited nodes to be infinite, to prevent the need to look at them twice
+            min_distance = np.min(distance_to_use)#get the minimum distance in the array to a node we know how to reach
+            if min_distance == np.inf: #if all nodes are either visited or have an infinite known cost to reach, we have explored the network as much as possible
+                break#hence break
+            min_index = distance_to_use.tolist().index(min_distance)#get the index of the first minimum value
+            (edge_times,edge_destinations,edge_names) = self.nodes[min_index].provide_nodes_time_edge_name()
+            num_edges = len(edge_times)
+            for i in range(num_edges):
+                try:
+                    destination_index = self.node_names.index(edge_destinations[i])
+                except ValueError:
+                    #handle case where destination name not in list of names
+                    warnings.warn('destination name', edge_destinations[i], 'is not in the list of node names in this network')
+                    continue #skip remaining computation steps
+
+                new_distance = min_distance + edge_times[i] #calculate distance to reach destination through the current node
+                if new_distance < distance_to_nodes[destination_index]:#if distance through current node is less than the current minimum distance
+                    distance_to_nodes[destination_index] = new_distance #update the distance
+                    minimum_path = paths[min_index].copy()
+                    minimum_path.append(edge_names[i])  #add the new edge to the minimum path to start node to get the minimum path to the end node
+                    paths[destination_index] = minimum_path #store the shortest path to the new node
+
+            #now we have looked at this node, update the nodes we have visited
+            nodes_visited[min_index] =  np.inf #indicate we have visited the node
+        
+        return distance_to_nodes,paths #return the distance to all the nodes
+
+
     #find the distance to travel to all nodes from all nodes
     def find_distance_to_all(self):
         num_nodes = len(self.node_names)
@@ -300,6 +349,23 @@ class Network:
         #and merge them into a numpy array
         
         self.distance_to_all = np.stack(distance_arrays)
+        return self.distance_to_all
+    
+    #as above, but also store the routes taken
+    def find_distance_to_all_path(self):
+        num_nodes = len(self.node_names)
+        distance_arrays = [] #list to store distance arrays from a particular node
+        path_arrays = [] #list to store path lists from each node
+        #generate the distance arrays from each node
+        for i in range(num_nodes):
+            new_distance,new_paths = (self.find_distance_dijistraka_path(self.node_names[i]))
+            distance_arrays.append(new_distance)
+            path_arrays.append(new_paths)
+
+        #and merge them into a numpy array
+        
+        self.distance_to_all = np.stack(distance_arrays)
+        self.paths_to_all = path_arrays
         return self.distance_to_all
 
     #create a matrix of travel demand between each node using the gravity model

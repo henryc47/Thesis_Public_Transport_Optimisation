@@ -716,12 +716,17 @@ class Display:
         self.text_id_line_start = self.canvas.create_text(start_x,start_y-15,text=display_text_start,state=tk.DISABLED)
         self.text_id_line_end = self.canvas.create_text(end_x,end_y-15,text=display_text_end,state=tk.DISABLED)
 
+    #event for when we mouse away from an edge
     def edge_leave(self,event):
         #event_id = event.widget.find_withtag('current')[0]
         #id_index = self.edge_canvas_ids.index(event_id)
         self.canvas.delete(self.text_id_line_start)
         self.canvas.delete(self.text_id_line_end)
 
+    #extract the path between two nodes
+    def extract_path_nodes(self,start_node_id,end_node_id):
+        edges_path = self.sim_network.paths_to_all[start_node_id][end_node_id]
+        return edges_path
 
 
 
@@ -740,7 +745,7 @@ class Display:
             self.nodes_colour[i] = colour
         self.render_nodes()
         self.render_edges()
-
+    
 
 #convert 24bit RGB colour to the hex format used by tkinter
 def RGB_TO_TK_HEX(red,green,blue):
