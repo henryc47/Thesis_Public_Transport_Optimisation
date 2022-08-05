@@ -30,7 +30,8 @@ class Display:
         self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
         self.simulation_setup = False #flag to indicate if simulation has been setup before
         self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
-        self.last_node_left_click_id = -1 #index of last node left-click, -1 indicates that no nodes have been clicked yet
+        self.last_node_left_click_id = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
+        self.last_node_right_click_id = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
 
     #setup the control options
@@ -268,8 +269,7 @@ class Display:
     def update_nodes(self):
         self.set_node_sizes()
         self.set_node_colours()
-        self.render_nodes()
-
+        self.render_graph()
 
 
     #calculate_node_sizes
@@ -525,6 +525,8 @@ class Display:
         self.edge_colours = [self.line_colour]*num_edges #store the default colour of every edge
         self.edge_arrows = [tk.NONE]*num_edges #by default there will be no arrows on an edge
 
+
+
     #needs to be run after edges have been extracted and nodes have been drawn to work correctly
     def render_edges(self):
         num_edges = len(self.edge_start_indices)
@@ -587,6 +589,10 @@ class Display:
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
             #self.origin_destination_trips
 
+    #combination of render nodes and render edges, in correct order to prevent edges spawning over nodes
+    def render_graph(self):
+        self.render_edges()
+        self.render_nodes()
 
     def draw_network_click(self):
         
@@ -597,8 +603,7 @@ class Display:
         self.extract_nodes_graph()
         self.calculate_node_position()
         self.extract_edges_graph()
-        self.render_edges()
-        self.render_nodes()
+        self.render_graph()
         self.first_render = False
 
     #erase the network graph 
@@ -645,6 +650,10 @@ class Display:
     def node_left_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
+        if self.last_node_right_click_id !=-1: #if a node has been right clicked on
+            self.reset_edges_plot() #remove any old route
+            self.plot_path_nodes(id_index,self.last_node_right_click_id,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
+        
         self.update_nodes_viewing_mode(id_index) #update the viewing mode due to the click
         #rerender the nodes to be of the correct size after the new click
         self.update_nodes()
@@ -665,7 +674,19 @@ class Display:
     
     #event for when we right-click on a node
     def node_right_click(self,event):
-        print('placeholder for node right click')
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
+        if id_index == self.last_node_left_click_id: #right clicking on a node we just left clicked on will do nothing for now
+            pass
+        elif self.last_node_left_click_id == -1: #as will right clicking if no left click has occured
+            pass
+        else:
+            self.reset_edges_plot() #remove any old route
+            self.plot_path_nodes(self.last_node_left_click_id,id_index,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
+            self.render_graph() #re-render the network
+            self.last_node_right_click_id = id_index
+        
+             
 
     #display the number of passengers travelling from a node to all other nodes (per hour as currently setup)
     def view_passengers_from_node(self,id_index):
@@ -811,16 +832,14 @@ class Display:
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
             self.nodes_radii[i] = size
-        self.render_nodes()
-        self.render_edges()
+        self.render_graph()
     
     #for testing
     def update_node_colour(self,colour):
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
             self.nodes_colour[i] = colour
-        self.render_nodes()
-        self.render_edges()
+        self.render_graph()
     
 
 #convert 24bit RGB colour to the hex format used by tkinter
