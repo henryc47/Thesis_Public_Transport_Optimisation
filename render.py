@@ -523,6 +523,7 @@ class Display:
         self.edge_canvas_ids = ['blank']*num_edges #store edge canvas ids in a list so we can delete them later, 'blank' indicates they have not yet been created
         self.edge_widths = [self.line_width]*num_edges #store the default width of every edge
         self.edge_colours = [self.line_colour]*num_edges #store the default colour of every edge
+        self.edge_arrows = [tk.NONE]*num_edges #by default there will be no arrows on an edge
 
     #needs to be run after edges have been extracted and nodes have been drawn to work correctly
     def render_edges(self):
@@ -536,12 +537,13 @@ class Display:
             end_y = self.nodes_y[end_index]
             colour = self.edge_colours[i]
             width = self.edge_widths[i]
+            edge_arrow = self.edge_arrows[i]
             #end_size = self.nodes_radii[end_index] #unused, we draw nodes over edges so no need to crop the edges
             if self.edge_canvas_ids[i]!='blank':
                 #delete the old line object if one exists
                 self.canvas.delete(self.edge_canvas_ids[i])
 
-            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=colour,disableddash=width,activewidth=width+self.active_width_addition) #draw a line to represent the edge
+            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=colour,disableddash=width,activewidth=width+self.active_width_addition,arrow=edge_arrow) #draw a line to represent the edge
             self.canvas.tag_bind(id,'<Enter>',self.edge_enter) #some information about the start and end nodes will be displayed when we mouse over an edge
             self.canvas.tag_bind(id,'<Leave>',self.edge_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.edge_canvas_ids[i] = id
@@ -756,6 +758,7 @@ class Display:
         for i in range(num_edges):
             self.edge_colours[i] = self.line_colour
             self.edge_widths[i] = self.line_width
+            self.edge_arrows[i] = tk.NONE
 
 
     #plot the path between two nodes
@@ -788,6 +791,16 @@ class Display:
             #now update edge names and colours for nodes on the path
             self.edge_colours[edge_index] = self.path_line_colour
             self.edge_widths[edge_index] = self.path_line_width
+            if arrows==True:#if we are plotting arrows
+                if reverse: #draw an arrow pointing towards the starting node
+                    self.edge_arrows[edge_index] = tk.FIRST
+                else: #draw an arrow pointing away from the starting node
+                    self.edge_arrows[edge_index] = tk.LAST
+            else: #if we are not plotting arrows
+                self.edge_arrows[edge_index] = tk.NONE #don't plot arrows
+
+
+
 
 
 
