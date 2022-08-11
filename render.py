@@ -17,13 +17,17 @@ class Display:
         self.render_canvas() #setup the canvas on which we will draw our visulisation
         self.setup_controls() #setup the widgets which will allow us to control the simulation and canvas 
         self.setup_display_constants() #set display constants which control default appearace of edges and nodes
-        
-        self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
-        self.simulation_setup = False #flag to indicate if simulation has been setup before
+        self.set_default_flags() #set the flags and modes of the rendering engine to be their default value
+
+    #set the various flags (and modes) used by the rendering engine to their default value
+    def set_default_flags(self):
+        self.first_render_flag = True #is this the first render of the visualisation for a network?
+        self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
         self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
-        self.last_node_left_click_id = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
-        self.last_node_right_click_id = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
+        self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
+        self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
+
 
     #setup the constants which control the default physical appearance of the network display
     def setup_display_constants(self):
@@ -97,11 +101,11 @@ class Display:
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
         self.message_update(simulation_setup_message)
-        if self.simulation_setup:   #only setup network visulisation tools if they have not already been created
+        if self.simulation_setup_flag:   #only setup network visulisation tools if they have not already been created
             pass
         else:
             self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
-        self.simulation_setup = True #flag to indicate that the simulation has been setup
+        self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
         
     
     #setup tools for exploring aspects of the simulated network which do not depend on actual simulation
@@ -206,15 +210,15 @@ class Display:
             self.nodes_radii = [self.default_node_radius]*num_nodes
             
         elif self.node_size_type == "node_relative":
-            if self.last_node_left_click_id == -1:
+            if self.last_node_left_click_index == -1:
                 self.nodes_radii = [self.default_node_radius]*num_nodes
                 self.message_update("click on a node to set node sizes based on traffic too/from that node") #node sizes will not be updated till users click on a node
             else:
                 if self.from_node:
-                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_id,:] #extract number of trips starting from this node
+                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_index,:] #extract number of trips starting from this node
                     total = np.sum(trips)
                 else:
-                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_id] #extract number of trips going to this node
+                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_index] #extract number of trips going to this node
                     total = np.sum(trips)
                 self.calculate_node_sizes(trips,total)
 
@@ -239,15 +243,15 @@ class Display:
         
         #set colour based on number of journeys too/from node to clicked node
         elif self.node_colour_type == "node_relative":
-            if self.last_node_left_click_id == -1:
+            if self.last_node_left_click_index == -1:
                 self.nodes_colour = [self.default_node_colour]*num_nodes    
                 self.message_update("click on a node to set node colours based on traffic too/from that node") #users need to select a node to update the colours
             else:
                 if self.from_node:
-                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_id,:] #extract number of trips starting from this node
+                    trips = self.sim_network.origin_destination_trips[self.last_node_left_click_index,:] #extract number of trips starting from this node
                     total = np.sum(trips)
                 else:
-                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_id] #extract number of trips going to this node
+                    trips = self.sim_network.origin_destination_trips[:,self.last_node_left_click_index] #extract number of trips going to this node
                     total = np.sum(trips)
                 self.calculate_node_colours(trips,total)
 
@@ -261,15 +265,15 @@ class Display:
             self.calculate_node_colours(trips,total)
 
         elif self.node_colour_type == "distance":
-            if self.last_node_left_click_id == -1:
+            if self.last_node_left_click_index == -1:
                 self.nodes_colour = [self.default_node_colour]*num_nodes    
                 self.message_update("click on a node to set node colours based on distance too/from that node") #users need to select a node to update the colours
             else:
                 max_time = np.amax(self.sim_network.distance_to_all)
                 if self.from_node:
-                    times = self.sim_network.distance_to_all[self.last_node_left_click_id,:] #extract journey times starting at this node
+                    times = self.sim_network.distance_to_all[self.last_node_left_click_index,:] #extract journey times starting at this node
                 else:
-                    times = self.sim_network.distance_to_all[:,self.last_node_left_click_id] #extract journey times going to this node
+                    times = self.sim_network.distance_to_all[:,self.last_node_left_click_index] #extract journey times going to this node
                 self.calculate_node_colours(times,max_time,mode='linear')
 
     #wrapper that recalculates node sizes and colours, and redraws the nodes
@@ -320,14 +324,14 @@ class Display:
     #update node text rendering without changing the id of the node whose information we are using
     def update_render_same_node(self):
         #don't update if no node-specific text was being displayed in the first place
-        if self.last_node_left_click_id == -1:
+        if self.last_node_left_click_index == -1:
             pass
         else:         
-            last_click_id = self.last_node_left_click_id
+            last_click_id = self.last_node_left_click_index
             self.erase_all_nodes_text() #erase all text already displayed
-            self.last_node_left_click_id = -1 #set this to -1 so update_nodes_viewing_mode correctly renders with a different mode (note keep this here for redunancy in case end up removing the reset from erase_all_nodes_text)
+            self.last_node_left_click_index = -1 #set this to -1 so update_nodes_viewing_mode correctly renders with a different mode (note keep this here for redunancy in case end up removing the reset from erase_all_nodes_text)
             self.update_nodes_viewing_mode(last_click_id) #update the render
-            self.last_node_left_click_id = last_click_id #set last left click id back to it's previous value so we can still remove info by clicking on that node again
+            self.last_node_left_click_index = last_click_id #set last left click id back to it's previous value so we can still remove info by clicking on that node again
 
     #switch between viewing information too a node or from a node
     def too_from_select_click(self):
@@ -606,15 +610,15 @@ class Display:
 
     def draw_network_click(self):
         
-        if self.first_render==False:
+        if self.first_render_flag==False:
             self.erase_network_graph()
-        if self.simulation_setup:
+        if self.simulation_setup_flag:
             self.erase_all_nodes_text()
         self.extract_nodes_graph()
         self.calculate_node_position()
         self.extract_edges_graph()
         self.render_graph()
-        self.first_render = False
+        self.first_render_flag = False
 
     #erase the network graph 
     def erase_network_graph(self):
@@ -660,9 +664,9 @@ class Display:
     def node_left_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
-        if self.last_node_right_click_id !=-1: #if a node has been right clicked on
+        if self.last_node_right_click_index !=-1: #if a node has been right clicked on
             self.reset_edges_plot() #remove any old route
-            self.plot_path_nodes(id_index,self.last_node_right_click_id,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
+            self.plot_path_nodes(id_index,self.last_node_right_click_index,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
         
         self.update_nodes_viewing_mode(id_index) #update the viewing mode due to the click
         #rerender the nodes to be of the correct size after the new click
@@ -670,9 +674,9 @@ class Display:
 
     #update the display of nodes based on viewing mode
     def update_nodes_viewing_mode(self,id_index):
-        if self.last_node_left_click_id == id_index: #if the same node has been clicked on again
+        if self.last_node_left_click_index == id_index: #if the same node has been clicked on again
             self.erase_all_nodes_text() #reset all text
-            self.last_node_left_click_id = -1
+            self.last_node_left_click_index = -1
         else: #otherwise, display info text for new node
             if self.gui_mode == 'view_nodes':
                 self.erase_all_nodes_text() #reset all text, as not used in this mode
@@ -680,21 +684,21 @@ class Display:
                 self.view_passengers_from_node(id_index)
             elif self.gui_mode == 'view_journeys':
                 self.view_journeys_from_node(id_index)
-            self.last_node_left_click_id = id_index #record this was the last node we clicked on
+            self.last_node_left_click_index = id_index #record this was the last node we clicked on
     
     #event for when we right-click on a node
     def node_right_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.node_canvas_ids.index(event_id) #get the index of the node which has been clicked on
-        if id_index == self.last_node_left_click_id: #right clicking on a node we just left clicked on will do nothing for now
+        if id_index == self.last_node_left_click_index: #right clicking on a node we just left clicked on will do nothing for now
             pass
-        elif self.last_node_left_click_id == -1: #as will right clicking if no left click has occured
+        elif self.last_node_left_click_index == -1: #as will right clicking if no left click has occured
             pass
         else:
             self.reset_edges_plot() #remove any old route
-            self.plot_path_nodes(self.last_node_left_click_id,id_index,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
+            self.plot_path_nodes(self.last_node_left_click_index,id_index,text_nodes=False,arrows=True) #draw a path from the left clicked node to the right clicked node
             self.render_graph() #re-render the network
-            self.last_node_right_click_id = id_index
+            self.last_node_right_click_index = id_index
         
              
 
@@ -736,7 +740,7 @@ class Display:
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self):
-        self.last_node_left_click_id = -1 #we are deleting all nodes text, so reset if any nodes have been clicked
+        self.last_node_left_click_index = -1 #we are deleting all nodes text, so reset if any nodes have been clicked
         for id in self.node_text_ids:
             if id!='blank':
                 self.canvas.delete(id)
