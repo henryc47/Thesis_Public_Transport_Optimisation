@@ -16,23 +16,30 @@ class Display:
         self.setup_canvas() #create the canvas where we can draw edges and nodes and vehicles
         self.render_canvas() #setup the canvas on which we will draw our visulisation
         self.setup_controls() #setup the widgets which will allow us to control the simulation and canvas 
-        #display constants 
-        self.max_node_radius = 30
-        self.custom_node_exponent = 3 #how does node radii scale with amount of stuff happening at that node
-        self.base_node_radius = 5
-        self.min_node_radius = 2
-        self.base_node_colour = 'grey'
-        self.line_width = 2
-        self.active_width_addition = 2 #how much will the line grow when it is active 
-        self.line_colour = 'black'
-        self.path_line_colour = 'magenta' #colour an edge which is part of the path
-        self.path_line_width = 3
+        self.setup_display_constants() #set display constants which control default appearace of edges and nodes
+        
         self.first_render = True #if it is not the first render, we need to delete rendering objects before drawing new ones
         self.simulation_setup = False #flag to indicate if simulation has been setup before
         self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
         self.last_node_left_click_id = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_id = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
+
+    #setup the constants which control the default physical appearance of the network display
+    def setup_display_constants(self):
+        #node constants 
+        self.max_node_radius = 30 #maximum node radius if node size scaled
+        self.default_node_radius = 5 #node size if nodes unscaled
+        self.min_node_radius = 2 #minimum node size if nodes scaled
+        self.custom_node_exponent = 3 #how does node radii scale with amount of stuff happening at that node (if nodes scaled)  
+        self.default_node_colour = 'grey' #node colour if nodes uncoloured
+        #edge constants
+        self.default_edge_width = 2 #default width of an edge
+        self.active_width_addition = 2 #how much will the edge grow in size when clicked on
+        self.default_edge_colour = 'black' #what colour will an edge be by default 
+        self.path_edge_colour = 'magenta' #what colour will an edge which is part of the drawn path be
+        self.path_edge_width = 3 #what width will an edge which is part of the drawn path be
+
 
     #setup the control options
     def setup_controls(self):
@@ -159,7 +166,7 @@ class Display:
             self.node_size_button.config(text="CONSTANT NODE SIZE")
         
         #rerender the nodes to be of the correct size
-        self.set_node_sizes()
+        self.update_nodes()
 
 
     def node_colour_click(self):
@@ -190,17 +197,17 @@ class Display:
             self.node_colour_button.config(text="CONSTANT NODE COLOUR")
         
          #rerender the nodes to be of the correct colour
-        self.set_node_colours()
+        self.update_nodes()
 
     #set node sizes in accordance with the mode choosen
     def set_node_sizes(self):
         num_nodes = len(self.node_names)
         if self.node_size_type =="constant":
-            self.nodes_radii = [self.base_node_radius]*num_nodes
+            self.nodes_radii = [self.default_node_radius]*num_nodes
             
         elif self.node_size_type == "node_relative":
             if self.last_node_left_click_id == -1:
-                self.nodes_radii = [self.base_node_radius]*num_nodes
+                self.nodes_radii = [self.default_node_radius]*num_nodes
                 self.message_update("click on a node to set node sizes based on traffic too/from that node") #node sizes will not be updated till users click on a node
             else:
                 if self.from_node:
@@ -221,19 +228,19 @@ class Display:
         else:
             warnings.warn("node_size_type " + self.node_size_type + " not yet impleneted using constant node size instead")
             #other modes not yet implemented, use constant node sizes instead
-            self.nodes_radii = [self.base_node_radius]*num_nodes
+            self.nodes_radii = [self.default_node_radius]*num_nodes
 
 
     #set node colours in accordance with the mode choosen
     def set_node_colours(self):
         num_nodes = len(self.node_names)
         if self.node_colour_type =="constant":
-            self.nodes_colour = [self.base_node_colour]*num_nodes
+            self.nodes_colour = [self.default_node_colour]*num_nodes
         
         #set colour based on number of journeys too/from node to clicked node
         elif self.node_colour_type == "node_relative":
             if self.last_node_left_click_id == -1:
-                self.nodes_colour = [self.base_node_colour]*num_nodes    
+                self.nodes_colour = [self.default_node_colour]*num_nodes    
                 self.message_update("click on a node to set node colours based on traffic too/from that node") #users need to select a node to update the colours
             else:
                 if self.from_node:
@@ -255,7 +262,7 @@ class Display:
 
         elif self.node_colour_type == "distance":
             if self.last_node_left_click_id == -1:
-                self.nodes_colour = [self.base_node_colour]*num_nodes    
+                self.nodes_colour = [self.default_node_colour]*num_nodes    
                 self.message_update("click on a node to set node colours based on distance too/from that node") #users need to select a node to update the colours
             else:
                 max_time = np.amax(self.sim_network.distance_to_all)
@@ -342,6 +349,7 @@ class Display:
         else:
             self.gui_mode = 'view_passengers'
             self.update_render_same_node()
+            self.render_graph()
             self.message_update("viewing passenger \n trip distribution")
 
     #function called by pressing the view passengers button, switch to view journeys viewing mode
@@ -353,6 +361,8 @@ class Display:
             self.gui_mode = 'view_journeys'
             self.message_update("viewing journey times")
             self.update_render_same_node()
+            self.render_graph()
+
 
 
 
@@ -521,8 +531,8 @@ class Display:
             self.edge_end_indices.append(end_index)
 
         self.edge_canvas_ids = ['blank']*num_edges #store edge canvas ids in a list so we can delete them later, 'blank' indicates they have not yet been created
-        self.edge_widths = [self.line_width]*num_edges #store the default width of every edge
-        self.edge_colours = [self.line_colour]*num_edges #store the default colour of every edge
+        self.edge_widths = [self.default_edge_width]*num_edges #store the default width of every edge
+        self.edge_colours = [self.default_edge_colour]*num_edges #store the default colour of every edge
         self.edge_arrows = [tk.NONE]*num_edges #by default there will be no arrows on an edge
 
 
@@ -555,8 +565,8 @@ class Display:
         num_nodes = len(self.node_names)
         self.nodes_x = []
         self.nodes_y = []
-        self.nodes_radii = [self.base_node_radius]*num_nodes #default size for nodes
-        self.nodes_colour = [self.base_node_colour]*num_nodes #default
+        self.nodes_radii = [self.default_node_radius]*num_nodes #default size for nodes
+        self.nodes_colour = [self.default_node_colour]*num_nodes #default
         self.node_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed next to all nodes
         self.node_canvas_ids = ['blank']*num_nodes #canvas ids for the nodes themsleves
         for i in range(num_nodes):
@@ -777,8 +787,8 @@ class Display:
     def reset_edges_plot(self):
         num_edges = len(self.edge_names)
         for i in range(num_edges):
-            self.edge_colours[i] = self.line_colour
-            self.edge_widths[i] = self.line_width
+            self.edge_colours[i] = self.default_edge_colour
+            self.edge_widths[i] = self.default_edge_width
             self.edge_arrows[i] = tk.NONE
 
 
@@ -810,8 +820,8 @@ class Display:
                     continue
             
             #now update edge names and colours for nodes on the path
-            self.edge_colours[edge_index] = self.path_line_colour
-            self.edge_widths[edge_index] = self.path_line_width
+            self.edge_colours[edge_index] = self.path_edge_colour
+            self.edge_widths[edge_index] = self.path_edge_width
             if arrows==True:#if we are plotting arrows
                 if reverse: #draw an arrow pointing towards the starting node
                     self.edge_arrows[edge_index] = tk.FIRST
