@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np 
 import network as n
 import warnings as warnings
-from os import path, times #for checking if file exists
+from os import path#for checking if file exists
 
 class Display:
 
@@ -41,7 +41,6 @@ class Display:
         self.first_render_flag = True #is this the first render of the visualisation for a network?
         self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
         self.secondary_control_mode = 'none' #which set of secondary controls (eg network_viz tools,simulation_viz_tools ) is being displayed
-        self.gui_mode = 'view_nodes' #mode of the display, view_nodes mean that hovering over nodes/edges will display node + edge names
         self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
@@ -227,20 +226,14 @@ class Display:
         self.network_viz.pack(side = tk.TOP)
         self.display_mode_label = tk.Label(master=self.network_viz,text='DISPLAY MODE',fg='black',bg='white',width=20)
         self.display_mode_label.pack()
-        #create a button to choose viewing details about trip distribution
-        self.view_passengers_button =  tk.Button(master=self.network_viz,text="PASSENGERS",fg='black',bg='white',command=self.view_passengers_click,width=20)
-        self.view_passengers_button.pack()
-        #create a button to choose viewing details about ideal journeys
-        self.view_journeys_button =  tk.Button(master=self.network_viz,text="JOURNEYS",fg='black',bg='white',command=self.view_journeys_click,width=20)
-        self.view_journeys_button.pack()
         #create a button to choose whether we are viewing information "from" a node or "too" a node
         self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
         self.too_from_select_button.pack()
         self.from_node = True #True = from_node, False= too_node  
-        #create a button to select whether to use numeric text to provide information about node relationships
-        self.numeric_text_button = tk.Button(master=self.network_viz,text="NUMERIC INFO",fg='black',bg='white',command=self.numeric_text_click,width=20)
-        self.numeric_text_button.pack()
-        self.numeric_text = True
+        #create a button to select whether to provide a numeric overlay on the canvas to provide information about node relationships
+        self.numeric_overlay_button = tk.Button(master=self.network_viz,text="NO NUMERIC OVERLAY",fg='black',bg='white',command=self.numeric_overlay_click,width=20,height=2)
+        self.numeric_overlay_button.pack()
+        self.numeric_overlay_mode = 'no_info'
         #create a button to select whether to use the size of nodes to provide information about nodes and their relationships
         self.node_size_button = tk.Button(master=self.network_viz,text="CONSTANT NODE SIZE",fg='black',bg='white',command=self.node_size_click,width=20,height=2)
         self.node_size_button.pack()
@@ -257,15 +250,27 @@ class Display:
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
 
     #command for button to switch whether numeric information (eg num passengers) will be displayed next to all relevant nodes
-    def numeric_text_click(self):
-        if self.numeric_text: #switch to no numeric info mode
-            self.numeric_text = False
-            self.numeric_text_button.config(text='NO NUMERIC INFO')
+    def numeric_overlay_click(self):
+        if self.numeric_overlay_mode == 'no_info': #switch to node total mode, where the total traffic too/from each node is displayed
+            self.numeric_overlay_mode = 'node_total' 
+            self.numeric_overlay_button.config(text="NODE TOTAL OVERLAY")
             self.update_text_same_node()
-        else: #switch to numeric info mode
-            self.numeric_text = True
-            self.numeric_text_button.config(text='NUMERIC INFO')
+
+        elif self.numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
+            self.numeric_overlay_mode = 'node_relative' 
+            self.numeric_overlay_button.config(text="NODE RELATIVE OVERLAY")
             self.update_text_same_node()
+
+        elif self.numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
+            self.numeric_overlay_mode = 'node_distance'
+            self.numeric_overlay_button.config(text="NODE DISTANCE OVERLAY")
+            self.update_text_same_node()
+
+        else: #switch back to the default mode of no numeric overlay
+            self.numeric_overlay_mode = 'no_info'
+            self.numeric_overlay_button.config(text="NO NUMERIC OVERLAY")
+            self.update_text_same_node()
+
 
     #command for button to switch between options for setting node size
     def node_size_click(self):
@@ -331,30 +336,6 @@ class Display:
             self.from_node = True
             self.too_from_select_button.config(text='FROM NODE')
             self.update_text_same_node()
-
-    #function called by pressing the view passengers button, switch to view passengers viewing mode
-    def view_passengers_click(self):
-        if self.gui_mode == 'view_passengers': #if we already selected the mode selected by the button, switch to the default mode
-            self.gui_mode = 'view_nodes'
-            self.erase_all_nodes_text()
-            self.message_update("default view mode selected")
-        else:
-            self.gui_mode = 'view_passengers'
-            self.update_text_same_node()
-            self.render_graph()
-            self.message_update("viewing passenger \n trip distribution")
-
-    #function called by pressing the view passengers button, switch to view journeys viewing mode
-    def view_journeys_click(self):
-        if self.gui_mode == 'view_journeys': #if we already selected the mode selected by the button, switch to the default mode
-            self.gui_mode = 'view_nodes'
-            self.message_update("default view mode selected")
-        else:
-            self.gui_mode = 'view_journeys'
-            self.message_update("viewing journey times")
-            self.update_text_same_node()
-            self.render_graph()
-
 
     #FUNCTIONS TO DETERMINE NODE SIZE/COLOUR
 
@@ -476,15 +457,37 @@ class Display:
 
     #update text rendering next to nodes without changing the node whose information we are using (eg distance to/from that node)
     def update_text_same_node(self):
-        #don't update if no node-specific text was being displayed in the first place
-        if self.last_node_left_click_index == -1:
+        if self.numeric_overlay_mode == 'node_total':
+        #if we are overlaying based on total traffic too/from node, the key node does not matter, so we can display info without it
+            self.erase_all_nodes_text() #erase all text already displayed
+            self.text_total_passengers_node() #replace with new info about total traffic too/from a node    
+        #otherwise don't update if no node-specific text was being displayed in the first place
+        elif self.last_node_left_click_index == -1:
+            self.erase_all_nodes_text() #erase all text already displayed
             pass
         else:         
             last_click_index = self.last_node_left_click_index
             self.erase_all_nodes_text() #erase all text already displayed
             self.last_node_left_click_index = -1 #set this to -1 so update_nodes_viewing_mode correctly renders with a different mode (note keep this here for redunancy in case end up removing the reset from erase_all_nodes_text)
             self.update_nodes_viewing_mode_left_click(last_click_index) #update the render
-            self.last_node_left_click_index = last_click_index #set last left click id back to it's previous value so we can still remove info by clicking on that node again
+            self.last_node_left_click_index = last_click_index #set last left click index back to it's previous value so we can still remove info by clicking on that node again
+
+    #update the display relating to nodes in response to a left click
+    def update_nodes_viewing_mode_left_click(self,left_click_index):
+        if self.numeric_overlay_mode == 'node_total':
+             self.text_total_passengers_node() #display the total number of passengers going too/from all nodes
+        elif self.last_node_left_click_index == left_click_index: #if the same node has been clicked on again
+            self.erase_all_nodes_text() #reset all text
+            self.last_node_left_click_index = -1
+        else: #otherwise, display info text for new node
+            if self.numeric_overlay_mode == 'no_info':
+                self.erase_all_nodes_text() #reset all text, as not used in this mode
+            elif self.numeric_overlay_mode == 'node_relative':
+                self.text_passengers_node(left_click_index) #display the number of passengers going too/from this particular node
+            elif self.numeric_overlay_mode == 'node_distance':
+                self.text_journeys_node(left_click_index) #display the time taken to travel from this node too/from all other nodes
+
+            self.last_node_left_click_index = left_click_index #record this was the last node we clicked on
 
     #UTILITY FUNCTIONS
 
@@ -584,7 +587,7 @@ class Display:
             self.nodes_x.append(x)
             self.nodes_y.append(y)
 
-    #FUNCTIONS CONTROLLING ACTUAL RENDERING
+    #FUNCTIONS PERFORMING ACTUAL RENDERING
 
     #needs to be run after edges have been extracted and nodes have been drawn to work correctly
     def render_edges(self):
@@ -696,20 +699,6 @@ class Display:
             self.render_graph() #re-render the network
             self.last_node_right_click_index = id_index
 
-   #update the display relating to nodes in response to a left click
-    def update_nodes_viewing_mode_left_click(self,left_click_index):
-        if self.last_node_left_click_index == left_click_index: #if the same node has been clicked on again
-            self.erase_all_nodes_text() #reset all text
-            self.last_node_left_click_index = -1
-        else: #otherwise, display info text for new node
-            if self.gui_mode == 'view_nodes':
-                self.erase_all_nodes_text() #reset all text, as not used in this mode
-            elif self.gui_mode == 'view_passengers':
-                self.view_passengers_from_node(left_click_index)
-            elif self.gui_mode == 'view_journeys':
-                self.view_journeys_from_node(left_click_index)
-            self.last_node_left_click_index = left_click_index #record this was the last node we clicked on
-
     #EVENT HANDLERS FOR CANVAS EDGES
 
     #event for when we mouse over an edge, display text boxes above connected nodes
@@ -739,20 +728,28 @@ class Display:
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE NODES
 
     #display the number of passengers travelling to/from a node to all other nodes (per hour as currently setup) as text above the nodes
-    def view_passengers_from_node(self,id_index):
+    def text_passengers_node(self,key_node_index):
         if self.from_node:
-            trips = self.sim_network.origin_destination_trips[id_index,:] #extract number of trips starting from this node
+            trips = self.sim_network.origin_destination_trips[key_node_index,:] #extract number of trips starting from this node
         else:
-            trips = self.sim_network.origin_destination_trips[:,id_index] #extract number of trips going to this node
+            trips = self.sim_network.origin_destination_trips[:,key_node_index] #extract number of trips going to this node
 
         self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at every other node
     
-    #display the number of passengers travelling to/from a node to all other nodes (per hour as currently setup) as text above the nodes
-    def view_journeys_from_node(self,id_index):
+    def text_total_passengers_node(self):
         if self.from_node:
-            times = self.sim_network.distance_to_all[id_index,:] #extract journey times starting at this node
+            trips = np.sum(self.sim_network.origin_destination_trips,0)#extract number of trips starting from all nodes
         else:
-            times = self.sim_network.distance_to_all[:,id_index] #extract journey times going to this node
+            trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
+
+        self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at each node node
+    
+    #display the number of passengers travelling to/from a node to all other nodes (per hour as currently setup) as text above the nodes
+    def text_journeys_node(self,key_node_index):
+        if self.from_node:
+            times = self.sim_network.distance_to_all[key_node_index,:] #extract journey times starting at this node
+        else:
+            times = self.sim_network.distance_to_all[:,key_node_index] #extract journey times going to this node
         
         self.display_text_info_above_node(times,mode='integer') #display journey times to/from every other node
 
@@ -760,18 +757,17 @@ class Display:
     def display_text_info_above_node(self,info,mode):
         num_nodes = len(self.node_names)
         self.erase_all_nodes_text() #clear any old text
-        if self.numeric_text: #only display numeric text above node if we are in a viewing mode that allows that
-            self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
-            for i in range(num_nodes): #for every node
-                node_x = self.nodes_x[i]
-                node_y = self.nodes_y[i]
-                this_info = info[i]
-                if mode=='float':
-                    this_info = "{:.2f}".format(this_info) #floating point data
-                elif mode=='integer':
-                    this_info = str(this_info) #integer data
-                
-                self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
+        self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
+        for i in range(num_nodes): #for every node
+            node_x = self.nodes_x[i]
+            node_y = self.nodes_y[i]
+            this_info = info[i]
+            if mode=='float':
+                this_info = "{:.2f}".format(this_info) #floating point data
+            elif mode=='integer':
+                this_info = str(this_info) #integer data
+            
+            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self):
