@@ -252,18 +252,27 @@ class Display:
     #command for button to switch whether numeric information (eg num passengers) will be displayed next to all relevant nodes
     def numeric_overlay_click(self):
         if self.numeric_overlay_mode == 'no_info': #switch to node total mode, where the total traffic too/from each node is displayed
-            self.numeric_overlay_mode = 'node_total' 
-            self.numeric_overlay_button.config(text="NODE TOTAL OVERLAY")
+            self.numeric_overlay_mode = 'node_total'
+            if self.from_node: 
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")
+            else:
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")    
             self.update_text_same_node()
 
         elif self.numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
-            self.numeric_overlay_mode = 'node_relative' 
-            self.numeric_overlay_button.config(text="NODE RELATIVE OVERLAY")
+            self.numeric_overlay_mode = 'node_relative'
+            if self.from_node:  
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TRAFFIC \n FROM CLICKED NODE")
+            else:
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TRAFFIC \n TOO CLICKED NODE")
             self.update_text_same_node()
 
         elif self.numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
             self.numeric_overlay_mode = 'node_distance'
-            self.numeric_overlay_button.config(text="NODE DISTANCE OVERLAY")
+            if self.from_node:
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY DISTANCE \n FROM CLICKED NODE")
+            else:
+                self.numeric_overlay_button.config(text="NUMERIC OVERLAY DISTANCE \n TOO CLICKED NODE")
             self.update_text_same_node()
 
         else: #switch back to the default mode of no numeric overlay
