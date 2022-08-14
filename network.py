@@ -150,7 +150,12 @@ class Network:
         time2 = time.time()
         if self.verbose>=1:
             print('time to assign passengers to origin destination pairs - ', time2-time1, ' seconds')
-        
+        time1 = time.time()
+        self.find_expected_edge_traffic()
+        time2 = time.time()
+        if self.verbose>=1:
+            print('time to calculate traffic along each edge ',time2-time1, ' seconds')
+
         #now create the schedules
         time1 = time.time()
         self.create_schedules(schedule_csv)
@@ -367,7 +372,21 @@ class Network:
         self.distance_to_all = np.stack(distance_arrays)
         self.paths_to_all = path_arrays
         return self.distance_to_all
-
+    
+    #find the expected traffic along each edge in each direction
+    def find_expected_edge_traffic(self):
+        #create the array 
+        num_edges = len(self.edge_names)
+        self.edge_traffic = np.zeros(num_edges)
+        #go through all the shortest path between node_pairs
+        for outer_index,paths in enumerate(self.paths_to_all):
+            for inner_index,path in enumerate(paths):
+                #extract the amount of traffic along the path between the selected nodes
+                node_to_node_traffic = self.origin_destination_trips[outer_index,inner_index]
+                for edge_name in path:#go through all the edge names in the path
+                    edge_index = self.get_edge_index(edge_name) #find the index of the edge we are pathing through
+                    self.edge_traffic[edge_index] = self.edge_traffic[edge_index] + node_to_node_traffic #add the traffic from the new edge
+        
     #create a matrix of travel demand between each node using the gravity model
     def create_origin_destination_matrix(self):
         num_passengers = np.array(self.node_passengers)
@@ -427,6 +446,8 @@ class Network:
             #print(' to ',self.node_names[i],' ', f"{stops[i]:.2f}", ' passengers which is', f"{percent_trips[i]*100:.2f}" ,' %')
         for i in range(num_nodes):
             self.test_origin_destination_matrix(self.node_names[i])
+
+
 
 
     #testing functionality

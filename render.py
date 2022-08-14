@@ -192,7 +192,7 @@ class Display:
     #setup the simulated network
     def setup_simulation_click(self):
         time1 = time.time()
-        self.sim_network = n.Network(self.nodes_csv,self.edges_csv,self.schedule_csv,self.verbose)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,verbose=1)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
@@ -283,57 +283,80 @@ class Display:
 
     #command for button to switch between options for setting node size
     def node_size_click(self):
+        #switch to the new mode
         if self.node_size_type == "constant":
-            #switch to modes where node size based on traffic coming too/from the clicked node
+            #switch to mode where node size is based on traffic going too/from the clicked node to other nodes
             self.node_size_type = "node_relative"
+        elif self.node_size_type == "node_relative":
+            #switch to mode where node size is based on total traffic coming too/from the clicked node
+            self.node_size_type = "node_total" 
+        elif self.node_size_type == "node_total":
+            #switch to mode where node size constant
+            self.node_size_type = "constant"
+        #update the text of the button
+        self.node_size_button_text_update()
+        #rerender the nodes to be of the correct size
+        self.update_nodes()
+
+    #command for the node size button to update to the correct text for it's mode of operation
+    def node_size_button_text_update(self):
+        if self.node_size_type == "node_relative":
             if self.from_node:
                 self.node_size_button.config(text="NODE SIZE TRAFFIC \n FROM CLICKED NODE")
             else:
                 self.node_size_button.config(text="NODE SIZE TRAFFIC \n TO CLICKED NODE")
-        elif self.node_size_type == "node_relative":
-            #switch to a mode where node size is based on total traffic too/from each node
-            self.node_size_type = "node_total"     
+        elif self.node_size_type == "node_total":
             if self.from_node:   
                 self.node_size_button.config(text="NODE SIZE TOTAL TRAFFIC \n FROM NODE")
             else:
                 self.node_size_button.config(text="NODE SIZE TOTAL TRAFFIC \n TO NODE")
-        else:
-            self.node_size_type = "constant"
+        elif self.node_size_type == "constant":
             self.node_size_button.config(text="CONSTANT NODE SIZE")
-        
-        #rerender the nodes to be of the correct size
-        self.update_nodes()
+
 
     #command for button to switch between options for setting node colour
     def node_colour_click(self):
         if self.node_colour_type == "constant":
             #switch to mode where node colour is based on journey distance to/from clicked node
             self.node_colour_type = "distance"
-            if self.from_node:
-                self.node_colour_button.config(text="NODE COLOUR DISTANCE \n FROM CLICKED NODE")
-            else:
-                self.node_size_button.config(text="NODE COLOUR DISTANCE \n TO CLICKED NODE")
         elif self.node_colour_type == "distance":
             #switch to mode where node colour is based on total traffic coming too/from the clicked node
             self.node_colour_type = "node_relative"
+        elif self.node_colour_type == "node_relative":
+            #switch to mode where node colour is based on traffic going too/from the clicked node to other nodes
+            self.node_colour_type = "node_total"
+        elif self.node_colour_type=="node_total":
+            #switch to constant node colour
+            self.node_colour_type = "constant"
+            
+        
+        #update the text of the button
+        self.node_colour_button_text_update()
+        #rerender the nodes to be of the correct colour
+        self.update_nodes()
+
+
+    #command for the node colour button to update to the correct text for it's mode of operation
+    def node_colour_button_text_update(self):
+        if self.node_colour_type == "distance":
+            if self.from_node:
+                self.node_colour_button.config(text="NODE COLOUR DISTANCE \n FROM CLICKED NODE")
+            else:
+                self.node_colour_button.config(text="NODE COLOUR DISTANCE \n TO CLICKED NODE")
+        elif self.node_colour_type == "node_relative":
             if self.from_node:
                 self.node_colour_button.config(text="NODE COLOUR TRAFFIC \n FROM CLICKED NODE")
             else:
                 self.node_colour_button.config(text="NODE COLOUR TRAFFIC \n TO CLICKED NODE")
-        elif self.node_colour_type == "node_relative":
-            #switch to a mode where node colour is based on total traffic too/from each node
-            self.node_colour_type = "node_total"
+        elif self.node_colour_type == "node_total":
             if self.from_node:   
                 self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n FROM NODE")
             else:
                 self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n TO NODE") 
 
-        elif self.node_colour_type=="node_total":
-            self.node_colour_type = "constant"
+        elif self.node_colour_type=="constant":
             self.node_colour_button.config(text="CONSTANT NODE COLOUR")
         
-         #rerender the nodes to be of the correct colour
-        self.update_nodes()
 
     #switch between viewing information too a node or from a node
     def too_from_select_click(self):
@@ -345,6 +368,10 @@ class Display:
             self.from_node = True
             self.too_from_select_button.config(text='FROM NODE')
             self.update_text_same_node()
+
+        #update the other buttons text
+        self.node_colour_button_text_update()
+        self.node_size_button_text_update()
 
     #FUNCTIONS TO DETERMINE NODE SIZE/COLOUR
 
@@ -455,6 +482,9 @@ class Display:
             
             #convert 24 bit RGB colour to the hex format expected by tkinter 
             self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
+
+
+    #FUNCTIONS TO DETERINE EDGE SIZE/COLOUR
 
     #FUNCTIONS CONTROLLING RENDERING OF NODES/EDGES
 
