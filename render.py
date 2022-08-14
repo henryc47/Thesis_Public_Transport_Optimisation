@@ -197,7 +197,7 @@ class Display:
     #setup the simulated network
     def setup_simulation_click(self):
         time1 = time.time()
-        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,verbose=1)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,verbose=self.verbose)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
@@ -229,16 +229,23 @@ class Display:
         #create the overall frame
         self.network_viz = tk.Frame(master=self.main_controls)
         self.network_viz.pack(side = tk.TOP)
-        self.display_mode_label = tk.Label(master=self.network_viz,text='DISPLAY MODE',fg='black',bg='white',width=20)
+        #A label for the too/from select button
+        self.display_mode_label = tk.Label(master=self.network_viz,text='TOO/FROM SELECT',fg='black',bg='white',width=20)
         self.display_mode_label.pack()
         #create a button to choose whether we are viewing information "from" a node or "too" a node
         self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
         self.too_from_select_button.pack()
-        self.from_node = True #True = from_node, False= too_node  
+        self.from_node = True #True = from_node, False= too_node
+        #A label for the nodes numeric overlay button
+        self.nodes_numeric_overlay_label = tk.Label(master=self.network_viz,text='NUMERIC OVERLAY MODE',fg='black',bg='white',width=20)
+        self.nodes_numeric_overlay_label.pack()
         #create a button to select whether to provide a numeric overlay on the canvas to provide information about node relationships
-        self.numeric_overlay_button = tk.Button(master=self.network_viz,text="NO NUMERIC OVERLAY",fg='black',bg='white',command=self.numeric_overlay_click,width=20,height=2)
-        self.numeric_overlay_button.pack()
-        self.numeric_overlay_mode = 'no_info'
+        self.nodes_numeric_overlay_button = tk.Button(master=self.network_viz,text="NO NODE OVERLAY",fg='black',bg='white',command=self.nodes_numeric_overlay_click,width=20,height=2)
+        self.nodes_numeric_overlay_button.pack()
+        self.nodes_numeric_overlay_mode = 'no_info'
+        #A label for the node appearance controls
+        self.nodes_appearance_label = tk.Label(master=self.network_viz,text='NODE APPEARANCE',fg='black',bg='white',width=20)
+        self.nodes_appearance_label.pack()
         #create a button to select whether to use the size of nodes to provide information about nodes and their relationships
         self.node_size_button = tk.Button(master=self.network_viz,text="CONSTANT NODE SIZE",fg='black',bg='white',command=self.node_size_click,width=20,height=2)
         self.node_size_button.pack()
@@ -255,34 +262,34 @@ class Display:
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
 
     #command for button to switch whether numeric information (eg num passengers) will be displayed next to all relevant nodes
-    def numeric_overlay_click(self):
-        if self.numeric_overlay_mode == 'no_info': #switch to node total mode, where the total traffic too/from each node is displayed
-            self.numeric_overlay_mode = 'node_total'
+    def nodes_numeric_overlay_click(self):
+        if self.nodes_numeric_overlay_mode == 'no_info': #switch to node total mode, where the total traffic too/from each node is displayed
+            self.nodes_numeric_overlay_mode = 'node_total'
             if self.from_node: 
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")
+                self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")
             else:
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")    
+                self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")    
             self.update_text_same_node()
 
-        elif self.numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
-            self.numeric_overlay_mode = 'node_relative'
+        elif self.nodes_numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
+            self.nodes_numeric_overlay_mode = 'node_relative'
             if self.from_node:  
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TRAFFIC \n FROM CLICKED NODE")
+                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n FROM CLICKED NODE")
             else:
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY TRAFFIC \n TOO CLICKED NODE")
+                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n TOO CLICKED NODE")
             self.update_text_same_node()
 
-        elif self.numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
-            self.numeric_overlay_mode = 'node_distance'
+        elif self.nodes_numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
+            self.nodes_numeric_overlay_mode = 'node_distance'
             if self.from_node:
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY DISTANCE \n FROM CLICKED NODE")
+                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n FROM CLICKED NODE")
             else:
-                self.numeric_overlay_button.config(text="NUMERIC OVERLAY DISTANCE \n TOO CLICKED NODE")
+                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n TOO CLICKED NODE")
             self.update_text_same_node()
 
         else: #switch back to the default mode of no numeric overlay
-            self.numeric_overlay_mode = 'no_info'
-            self.numeric_overlay_button.config(text="NO NUMERIC OVERLAY")
+            self.nodes_numeric_overlay_mode = 'no_info'
+            self.nodes_numeric_overlay_button.config(text="NO NUMERIC OVERLAY")
             self.update_text_same_node()
 
 
@@ -501,7 +508,7 @@ class Display:
 
     #update text rendering next to nodes without changing the node whose information we are using (eg distance to/from that node)
     def update_text_same_node(self):
-        if self.numeric_overlay_mode == 'node_total':
+        if self.nodes_numeric_overlay_mode == 'node_total':
         #if we are overlaying based on total traffic too/from node, the key node does not matter, so we can display info without it
             self.erase_all_nodes_text() #erase all text already displayed
             self.text_total_passengers_node() #replace with new info about total traffic too/from a node    
@@ -518,17 +525,17 @@ class Display:
 
     #update the display relating to nodes in response to a left click
     def update_nodes_viewing_mode_left_click(self,left_click_index):
-        if self.numeric_overlay_mode == 'node_total':
+        if self.nodes_numeric_overlay_mode == 'node_total':
              self.text_total_passengers_node() #display the total number of passengers going too/from all nodes
         elif self.last_node_left_click_index == left_click_index: #if the same node has been clicked on again
             self.erase_all_nodes_text() #reset all text
             self.last_node_left_click_index = -1
         else: #otherwise, display info text for new node
-            if self.numeric_overlay_mode == 'no_info':
+            if self.nodes_numeric_overlay_mode == 'no_info':
                 self.erase_all_nodes_text() #reset all text, as not used in this mode
-            elif self.numeric_overlay_mode == 'node_relative':
+            elif self.nodes_numeric_overlay_mode == 'node_relative':
                 self.text_passengers_node(left_click_index) #display the number of passengers going too/from this particular node
-            elif self.numeric_overlay_mode == 'node_distance':
+            elif self.nodes_numeric_overlay_mode == 'node_distance':
                 self.text_journeys_node(left_click_index) #display the time taken to travel from this node too/from all other nodes
 
             self.last_node_left_click_index = left_click_index #record this was the last node we clicked on
