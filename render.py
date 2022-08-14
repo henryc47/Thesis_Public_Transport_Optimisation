@@ -829,7 +829,7 @@ class Display:
             elif mode=='integer':
                 this_info = str(this_info) #integer data
             
-            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED) #create a text popup, which is not interactive
+            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self):
@@ -847,7 +847,7 @@ class Display:
         for i in range(num_edges): #for every edge
             edge_x = self.edges_midpoint_x[i]
             edge_y = self.edges_midpoint_y[i]
-            self.edge_text_ids[i] = self.canvas.create_text(edge_x,edge_y,text=info[i],state=tk.DISABLED) #create a text popup, which is not interactive
+            self.edge_text_ids[i] = self.canvas.create_text(edge_x,edge_y,text=info[i],state=tk.DISABLED,fill=self.default_edge_text_colour) #create a text popup, which is not interactive
 
     #render edge names
     def render_edge_names(self):
