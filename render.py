@@ -35,6 +35,9 @@ class Display:
         self.default_edge_colour = 'black' #what colour will an edge be by default 
         self.path_edge_colour = 'magenta' #what colour will an edge which is part of the drawn path be
         self.path_edge_width = 3 #what width will an edge which is part of the drawn path be
+        #node text constants
+        self.default_node_text_colour = 'black'
+        self.default_edge_text_colour = 'purple'
 
     #set the various flags (and modes) used by the rendering engine to their default value
     def set_default_flags(self):
@@ -183,9 +186,11 @@ class Display:
             self.erase_network_graph()
         if self.simulation_setup_flag:
             self.erase_all_nodes_text()
+            self.erase_all_edges_text() 
         self.extract_nodes_graph()
         self.calculate_node_position()
         self.extract_edges_graph()
+        self.calculate_edges_midpoints()
         self.render_graph()
         self.first_render_flag = False
 
@@ -483,8 +488,8 @@ class Display:
             #convert 24 bit RGB colour to the hex format expected by tkinter 
             self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
-
     #FUNCTIONS TO DETERINE EDGE SIZE/COLOUR
+
 
     #FUNCTIONS CONTROLLING RENDERING OF NODES/EDGES
 
@@ -625,6 +630,24 @@ class Display:
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
             self.nodes_x.append(x)
             self.nodes_y.append(y)
+
+    #calculate the midpoint of edges, used for plotting overlay text on edges
+    #this needs to be done after node positions are calculated
+    def calculate_edges_midpoints(self):
+        num_edges = len(self.edge_names)
+        self.edges_midpoint_x = []
+        self.edges_midpoint_y = []
+        self.edge_text_ids = ['blank']*num_edges  #canvas ids for text which could be displayed next to all edges
+        for i in range(num_edges):
+            #extract the location of the nodes which the edge connects
+            edge_start_index = self.edge_start_indices[i] 
+            edge_end_index = self.edge_end_indices[i]
+            #and then calculate the midpoint of the edge
+            edge_midpoint_x = (self.nodes_x[edge_start_index] + self.nodes_x[edge_end_index])/2
+            edge_midpoint_y = (self.nodes_y[edge_start_index] + self.nodes_y[edge_end_index])/2
+            #and store this calculated value in a list
+            self.edges_midpoint_x.append(edge_midpoint_x)
+            self.edges_midpoint_y.append(edge_midpoint_y)
 
     #FUNCTIONS PERFORMING ACTUAL RENDERING
 
@@ -814,7 +837,30 @@ class Display:
         for id in self.node_text_ids:
             if id!='blank':
                 self.canvas.delete(id)
-            
+
+    #FUNCTIONS TO GENERATE INFO TEXT ABOVE EDGES
+    #render text above edges
+    def display_text_info_above_edges(self,info):
+        num_edges = len(self.edge_names)
+        self.erase_all_edges_text() #clear any old text
+        self.edge_text_ids = ['blank']*num_edges #create a container for the new text ids
+        for i in range(num_edges): #for every edge
+            edge_x = self.edges_midpoint_x[i]
+            edge_y = self.edges_midpoint_y[i]
+            self.edge_text_ids[i] = self.canvas.create_text(edge_x,edge_y,text=info[i],state=tk.DISABLED) #create a text popup, which is not interactive
+
+    #render edge names
+    def render_edge_names(self):
+        self.display_text_info_above_edges(self.edge_names)
+
+    #erase text displayed next to all edges
+    def erase_all_edges_text(self):
+        self.last_edge_left_click_index = -1 #we are deleting all nodes text, so reset if any edges have been clicked
+        for id in self.edge_text_ids:
+            if id!='blank':
+                self.canvas.delete(id)
+
+
     #FUNCTIONS TO PLOT A PATH BETWEEN TWO NODES
 
     #extract the path between two node based on their indices
