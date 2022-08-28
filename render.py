@@ -230,12 +230,16 @@ class Display:
         self.network_viz = tk.Frame(master=self.main_controls)
         self.network_viz.pack(side = tk.TOP)
         #A label for the too/from select button
-        self.display_mode_label = tk.Label(master=self.network_viz,text='TOO/FROM SELECT',fg='black',bg='white',width=20)
+        self.display_mode_label = tk.Label(master=self.network_viz,text='DIRECTION SELECT',fg='black',bg='white',width=20)
         self.display_mode_label.pack()
         #create a button to choose whether we are viewing information "from" a node or "too" a node
         self.too_from_select_button = tk.Button(master=self.network_viz,text="FROM NODE",fg='black',bg='white',command=self.too_from_select_click,width=20)
         self.too_from_select_button.pack()
         self.from_node = True #True = from_node, False= too_node
+        #create a button to choose which edge direction will be used for edge related plotting
+        self.edge_direction_button = tk.Button(master=self.network_viz,text="BOTH EDGE DIRECTIONS",fg='black',bg='white',command=self.edge_direction_select_click,width=20)
+        self.edge_direction_button.pack()
+        self.edge_direction_mode = 'both'
         #A label for the nodes numeric overlay button
         self.nodes_numeric_overlay_label = tk.Label(master=self.network_viz,text='NUMERIC OVERLAY MODE',fg='black',bg='white',width=20)
         self.nodes_numeric_overlay_label.pack()
@@ -243,6 +247,10 @@ class Display:
         self.nodes_numeric_overlay_button = tk.Button(master=self.network_viz,text="NO NODE OVERLAY",fg='black',bg='white',command=self.nodes_numeric_overlay_click,width=20,height=2)
         self.nodes_numeric_overlay_button.pack()
         self.nodes_numeric_overlay_mode = 'no_info'
+        #create a button to select whether to provide a numeric overlay on the canvas to provide information about edges
+        self.edges_numeric_overlay_button = tk.Button(master=self.network_viz,text="NO EDGE OVERLAY",fg='black',bg='white',command=self.edges_numeric_overlay_click,width=20,height=2)
+        self.edges_numeric_overlay_button.pack()
+        self.edges_numeric_overlay_mode = 'no_info'
         #A label for the node appearance controls
         self.nodes_appearance_label = tk.Label(master=self.network_viz,text='NODE APPEARANCE',fg='black',bg='white',width=20)
         self.nodes_appearance_label.pack()
@@ -269,7 +277,6 @@ class Display:
                 self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")
             else:
                 self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")    
-            self.update_text_same_node()
 
         elif self.nodes_numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
             self.nodes_numeric_overlay_mode = 'node_relative'
@@ -277,7 +284,6 @@ class Display:
                 self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n FROM CLICKED NODE")
             else:
                 self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n TOO CLICKED NODE")
-            self.update_text_same_node()
 
         elif self.nodes_numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
             self.nodes_numeric_overlay_mode = 'node_distance'
@@ -285,12 +291,69 @@ class Display:
                 self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n FROM CLICKED NODE")
             else:
                 self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n TOO CLICKED NODE")
-            self.update_text_same_node()
 
         else: #switch back to the default mode of no numeric overlay
             self.nodes_numeric_overlay_mode = 'no_info'
-            self.nodes_numeric_overlay_button.config(text="NO NUMERIC OVERLAY")
-            self.update_text_same_node()
+            self.nodes_numeric_overlay_button.config(text="NO NODE OVERLAY")
+        
+        self.update_text_same_node()
+
+    #command for button to switch whether edge statistics will be displayed forward/reverse
+    def edge_direction_select_click(self):
+        if self.edge_direction_mode == 'both':
+             self.edge_direction_button.config(text='FORWARD EDGE DIRECTION');
+             self.edge_direction_mode = 'forward'
+        elif self.edge_direction_mode == 'forward':
+            self.edge_direction_button.config(text='REVERSE EDGE DIRECTION');
+            self.edge_direction_mode = 'reverse'
+        elif self.edge_direction_mode == 'reverse':
+            self.edge_direction_button.config(text='BOTH EDGE DIRECTIONS');
+            self.edge_direction_mode = 'both'
+        
+        self.edges_overlay_button_text_update()
+           
+
+
+
+    #command for button to switch whether numeric information (eg num passengers) will be displayed along relevant edges
+    def edges_numeric_overlay_click(self):
+        if self.edges_numeric_overlay_mode == 'no_info': #switch to distance mode, where the length of the node forward/reverse is displayed
+            self.edges_numeric_overlay_mode = 'distance'
+        elif self.edges_numeric_overlay_mode == 'distance':
+            self.edges_numeric_overlay_mode = 'traffic' #switch to each traffic, where the amount of traffic forward/reverse an edge is displayed
+        elif self.edges_numeric_overlay_mode == 'traffic':
+            self.edges_numeric_overlay_mode = 'total_traffic' #switch to total traffic, where the combined amount of traffic on an edge is displayed
+        else:
+            self.edges_numeric_overlay_mode = 'no_info' #switch back to the default mode of no numeric overlay
+    
+
+        self.edges_overlay_button_text_update() #update the text on the button
+                                                #update the overlay rendering
+
+    #function to correctly set the text for the edges numeric overlay button
+    def edges_overlay_button_text_update(self):
+        if self.edges_numeric_overlay_mode == 'no_info': 
+            self.edges_numeric_overlay_button.config(text="NO EDGE OVERLAY")
+        elif self.edges_numeric_overlay_mode == 'distance':
+            if self.edge_direction_mode == 'both':
+                self.edges_numeric_overlay_button.config(text="FORWARD + REVERSE \n EDGE TRAVEL TIME")
+            elif self.edge_direction_mode == 'forward':
+                self.edges_numeric_overlay_button.config(text="FORWARD EDGE \n TRAVEL TIME")
+            elif self.edge_direction_mode == 'reverse':
+                self.edges_numeric_overlay_button.config(text="REVERSE EDGE \n TRAVEL TIME")
+
+        elif self.edges_numeric_overlay_mode == 'traffic':
+            if self.edge_direction_mode == 'both':
+                self.edges_numeric_overlay_button.config(text="FORWARD + REVERSE \n EDGE TRAFFIC")
+            elif self.edge_direction_mode == 'forward':
+                self.edges_numeric_overlay_button.config(text="FORWARD TRAFFIC \n THROUGH EDGE")
+            elif self.edge_direction_mode == 'reverse':
+                self.edges_numeric_overlay_button.config(text="REVERSE TRAFFIC \n THROUGH EDGE")
+
+        elif self.edges_numeric_overlay_mode == 'total_traffic':
+            self.edges_numeric_overlay_button.config(text="TOTAL TRAFFIC \n THROUGH EDGE")
+            
+
 
 
     #command for button to switch between options for setting node size
