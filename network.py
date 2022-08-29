@@ -416,6 +416,17 @@ class Network:
             warnings.warn('edge_name  ', edge_name, 'is not in the list of edge names in this network')
             return -1 #return -1 to indicate error
 
+    #get the time taken to traverse a node
+    def get_edge_time(self,edge_name):
+        index = self.get_edge_index(edge_name)
+        time_taken = self.edges[index].provide_travel_time()
+        return time_taken
+
+    #get the traffic through a node
+    def get_edge_traffic(self,edge_name):
+        index = self.get_edge_index(edge_name)
+        traffic = self.edge_traffic[index]
+        return traffic
 
     #provide a breakdown of where passengers starting at a particular node are going
     def test_origin_destination_matrix(self,start_node_name):
@@ -446,9 +457,6 @@ class Network:
             #print(' to ',self.node_names[i],' ', f"{stops[i]:.2f}", ' passengers which is', f"{percent_trips[i]*100:.2f}" ,' %')
         for i in range(num_nodes):
             self.test_origin_destination_matrix(self.node_names[i])
-
-
-
 
     #testing functionality
     def test_nodes(self):

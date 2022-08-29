@@ -310,11 +310,9 @@ class Display:
             self.edge_direction_button.config(text='BOTH EDGE DIRECTIONS');
             self.edge_direction_mode = 'both'
         
-        self.edges_overlay_button_text_update()
+        self.edges_overlay_button_text_update()  #update the text on the button
+        self.generate_edge_overlay_text()       #update the overlay rendering
            
-
-
-
     #command for button to switch whether numeric information (eg num passengers) will be displayed along relevant edges
     def edges_numeric_overlay_click(self):
         if self.edges_numeric_overlay_mode == 'no_info': #switch to distance mode, where the length of the node forward/reverse is displayed
@@ -328,7 +326,7 @@ class Display:
     
 
         self.edges_overlay_button_text_update() #update the text on the button
-                                                #update the overlay rendering
+        self.generate_edge_overlay_text()       #update the overlay rendering
 
     #function to correctly set the text for the edges numeric overlay button
     def edges_overlay_button_text_update(self):
@@ -353,9 +351,6 @@ class Display:
         elif self.edges_numeric_overlay_mode == 'total_traffic':
             self.edges_numeric_overlay_button.config(text="TOTAL TRAFFIC \n THROUGH EDGE")
             
-
-
-
     #command for button to switch between options for setting node size
     def node_size_click(self):
         #switch to the new mode
@@ -388,7 +383,6 @@ class Display:
         elif self.node_size_type == "constant":
             self.node_size_button.config(text="CONSTANT NODE SIZE")
 
-
     #command for button to switch between options for setting node colour
     def node_colour_click(self):
         if self.node_colour_type == "constant":
@@ -409,7 +403,6 @@ class Display:
         self.node_colour_button_text_update()
         #rerender the nodes to be of the correct colour
         self.update_nodes()
-
 
     #command for the node colour button to update to the correct text for it's mode of operation
     def node_colour_button_text_update(self):
@@ -432,7 +425,6 @@ class Display:
         elif self.node_colour_type=="constant":
             self.node_colour_button.config(text="CONSTANT NODE COLOUR")
         
-
     #switch between viewing information too a node or from a node
     def too_from_select_click(self):
         if self.from_node:
@@ -559,10 +551,7 @@ class Display:
             self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
     #FUNCTIONS TO DETERINE EDGE SIZE/COLOUR
-
-
     #FUNCTIONS CONTROLLING RENDERING OF NODES/EDGES
-
     #wrapper that recalculates node sizes and colours, and redraws the nodes
     def update_nodes(self):
         self.set_node_sizes()
@@ -910,6 +899,87 @@ class Display:
 
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE EDGES
     #render text above edges
+
+    #get data about a specific edge from the network
+    #valid types are "time" and "traffic"
+    def get_edge_data(self,edge_name,type):
+        index = self.sim_network.get_edge_index(edge_name)#get the index of the edge in the network data structure
+        if type == 'time':
+            data = self.sim_network.get_edge_time(edge_name)
+        elif type == 'traffic':
+            data = self.sim_network.get_edge_traffic(edge_name)
+        return data
+
+    #extract a type of data from all edges in the network
+    #def extract_data_edges(self,type):
+        #forward_edge_data = []
+        #reverse_edge_data = []
+        #if self.edge_direction_mode == 'forward' or self.edge_direction_mode == 'both':#extract data about all the forward edges         
+        #    for forward_edge_name in self.edge_names:
+        #        self.forward_edge_data.append(self.get_edge_data(forward_edge_name,type))
+
+        #if self.edge_direction_mode == 'reverse' or self.edge_direction_mode == 'both': #extract data about all the reverse edges
+        #    for reverse_edge_name in self.edge_reverse_names:
+        #        self.reverse_edge_data.append(self.get_edge_data(reverse_edge_name,type))
+    
+        #now return the produced data
+        #if self.edge_direction_mode == 'forward':
+        #    return forward_edge_data
+        #elif self.edge_direction_mode == 'reverse':
+        #    return reverse_edge_data
+        #elif self.edge_direction_mode == 'both':
+        #    return forward_edge_data,reverse_edge_data
+
+    def extract_data_edges(self,type):
+        forward_edge_data = []
+        reverse_edge_data = []
+        for forward_edge_name in self.edge_names: #extract data from the forward edges
+            forward_edge_data.append(self.get_edge_data(forward_edge_name,type))
+        for reverse_edge_name in self.edge_reverse_names:
+            reverse_edge_data.append(self.get_edge_data(reverse_edge_name,type))
+        return forward_edge_data,reverse_edge_data
+
+    #determine the actual text which will be displayed on the edges
+    #if combine is true, the data will be added together for display
+    def determine_edges_text(self,type,combine):
+        (forward_edge_data,reverse_edge_data) = self.extract_data_edges(type) #extract forward and edge data
+        edges_text = []
+        num_edges = len(forward_edge_data)
+        if combine:
+            for i in range(num_edges):
+               combined_data =  reverse_edge_data[i] + forward_edge_data[i]
+               edges_text.append(format(combined_data,'.2f'))
+
+        else:
+            if self.edge_direction_mode == 'forward':
+                for i in range(num_edges):
+                    edges_text.append(format(forward_edge_data[i],'.2f'))
+            elif self.edge_direction_mode == 'reverse':
+                for i in range(num_edges):
+                    edges_text.append(format(reverse_edge_data[i],'.2f'))
+            elif self.edge_direction_mode == 'both':
+                for i in range(num_edges):
+                    edges_text.append(format(reverse_edge_data[i],'.2f') + '/' + format(reverse_edge_data[i],'.2f'))
+
+        return edges_text
+    #if type == 'time':
+    #type == 'traffic'
+    #self.edge_direction_mode
+    #self.edges_numeric_overlay_mode
+    #generate and plot the overlay text for edges
+    def generate_edge_overlay_text(self):
+        if self.edges_numeric_overlay_mode == 'no_info':
+            self.erase_all_edges_text() #delete any existing edge text
+            return #exit the function, we don't need to do anything more 
+        elif self.edges_numeric_overlay_mode == 'distance':
+            edges_text = self.determine_edges_text('time',False)
+        elif self.edges_numeric_overlay_mode == 'traffic':
+            edges_text = self.determine_edges_text('traffic',False)
+        elif self.edges_numeric_overlay_mode == 'total_traffic':
+            edges_text = self.determine_edges_text('traffic',True)
+        #display the text previously generated
+        self.display_text_info_above_edges(edges_text)
+
     def display_text_info_above_edges(self,info):
         num_edges = len(self.edge_names)
         self.erase_all_edges_text() #clear any old text
