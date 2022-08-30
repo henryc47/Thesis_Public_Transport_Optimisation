@@ -32,6 +32,9 @@ class Display:
         #edge constants
         self.default_edge_width = 2 #default width of an edge
         self.active_width_addition = 2 #how much will the edge grow in size when clicked on
+        self.min_edge_width = 1 #minimum width of an edge if edges scaled
+        self.max_edge_width = 10 #maximum width of an edge if edges scaled
+        self.custom_edge_exponent = 2 #how does edge width scale with amount of stuff happening at that edge (if edge scaled)
         self.default_edge_colour = 'black' #what colour will an edge be by default 
         self.path_edge_colour = 'magenta' #what colour will an edge which is part of the drawn path be
         self.path_edge_width = 3 #what width will an edge which is part of the drawn path be
@@ -262,6 +265,18 @@ class Display:
         self.node_colour_button = tk.Button(master=self.network_viz,text="CONSTANT NODE COLOUR",fg='black',bg='white',command=self.node_colour_click,width=20,height=2)
         self.node_colour_button.pack()
         self.node_colour_type = "constant"
+        #A label for the edge appearance controls
+        self.edges_appearance_label = tk.Label(master=self.network_viz,text='EDGE APPEARANCE',fg='black',bg='white',width=20)
+        self.edges_appearance_label.pack()
+        #create a button to select whether to use the size of edges to provide information about the edges
+        self.edge_width_button = tk.Button(master=self.network_viz,text="CONSTANT EDGE WIDTH",fg='black',bg='white',command=self.edge_width_click,width=20,height=2)
+        self.edge_width_button.pack()
+        self.edge_width_type = "constant" #by default, edges will be a constant size
+        #create a button to select whether to use the colour of edges to provide information about the edges
+        self.edge_colour_button = tk.Button(master=self.network_viz,text="CONSTANT EDGE COLOUR",fg='black',bg='white',command=self.edge_colour_click,width=20,height=2)
+        self.edge_colour_button.pack()
+        self.edge_colour_type = "constant" #by default, edges will be a constant size
+
 
     #delete the network_viz tool controls 
     def clear_network_viz_tools(self):
@@ -312,6 +327,9 @@ class Display:
         
         self.edges_overlay_button_text_update()  #update the text on the button
         self.generate_edge_overlay_text()       #update the overlay rendering
+        self.edge_width_button_text_update() #update the text on the buttons
+        self.edge_colour_button_text_update()
+        self.update_edges() #update the rendering of the edges
            
     #command for button to switch whether numeric information (eg num passengers) will be displayed along relevant edges
     def edges_numeric_overlay_click(self):
@@ -424,7 +442,72 @@ class Display:
 
         elif self.node_colour_type=="constant":
             self.node_colour_button.config(text="CONSTANT NODE COLOUR")
+
+    #command for the edge width button to switch between options for setting edge width 
+    def edge_width_click(self):
+        #switch to the new mode
+        if self.edge_width_type == "constant":
+            #switch to mode where edge width is based on traffic going forward/reverse through nodes
+            self.edge_width_type = "traffic"
+        elif self.edge_width_type == "traffic":
+            #switch to mode where edge width is constant
+            self.edge_width_type = "constant"
+
+        #update the text of the button
+        self.edge_width_button_text_update()
+        #rerender the nodes to be of the correct size
+        self.update_edges() 
+
+     #command for the edge width button to update to the correct text for it's mode of operation
+    def edge_width_button_text_update(self):
+        if self.edge_width_type == "constant":
+            self.edge_width_button.config(text="CONSTANT EDGE WIDTH")
+        elif self.edge_width_type == "traffic":
+            if self.edge_direction_mode == 'forward':
+                self.edge_width_button.config(text="EDGE WIDTH \n FORWARD TRAFFIC")
+            elif self.edge_direction_mode == 'reverse':
+                self.edge_width_button.config(text="EDGE WIDTH \n REVERSE TRAFFIC")
+            elif self.edge_direction_mode == 'both':
+                self.edge_width_button.config(text="EDGE WIDTH \n COMBINED TRAFFIC")
+
+
+    def edge_colour_click(self):
+        #switch to the new mode
+        if self.edge_colour_type == "constant":
+            #switch to mode where edge colour is based on traffic going forward/reverse through nodes
+            self.edge_colour_type = "traffic"
+        elif self.edge_colour_type == "traffic":
+            #switch to mode where edge colour is based on travel time
+            self.edge_colour_type = "time"
+        elif self.edge_colour_type == "time":
+            #switch to mode where edge colour is constant
+            self.edge_colour_type = "constant"
+
+        #update the text of the button
+        self.edge_colour_button_text_update()
+        #rerender the nodes to be of the correct size
+        self.update_edges()
+
+    def edge_colour_button_text_update(self):
+        if self.edge_colour_type == "constant":
+            self.edge_colour_button.config(text="CONSTANT EDGE COLOUR")
+        elif self.edge_colour_type == "traffic":
+            if self.edge_direction_mode == 'forward':
+                self.edge_colour_button.config(text="EDGE COLOUR \n FORWARD TRAFFIC")
+            elif self.edge_direction_mode == 'reverse':
+                self.edge_colour_button.config(text="EDGE COLOUR \n REVERSE TRAFFIC")
+            elif self.edge_direction_mode == 'both':
+                self.edge_colour_button.config(text="EDGE COLOUR \n COMBINED TRAFFIC")
+
+        elif self.edge_colour_type == "time":
+            if self.edge_direction_mode == 'forward':
+                self.edge_colour_button.config(text="EDGE COLOUR \n FORWARD TRAVEL TIME")
+            elif self.edge_direction_mode == 'reverse':
+                self.edge_colour_button.config(text="EDGE COLOUR \n REVERSE TRAVEL TIME")
+            elif self.edge_direction_mode == 'both':
+                self.edge_colour_button.config(text="EDGE COLOUR \n AVERAGE TRAVEL TIME")
         
+
     #switch between viewing information too a node or from a node
     def too_from_select_click(self):
         if self.from_node:
@@ -523,7 +606,7 @@ class Display:
             if self.nodes_radii[i] < self.min_node_radius: #enforce the minimum size of a node
                 self.nodes_radii[i] = self.min_node_radius
 
-    #calculate node colour based on provided information
+    #calculate and perform final setting of node colour based on provided information
     def calculate_node_colours(self,nodes_quantity,total_quantity,mode='default'):
         num_nodes = len(nodes_quantity)
         for i in range(num_nodes):
@@ -536,26 +619,112 @@ class Display:
             #convert node_colour_fraction to RGB, blue at 0, green at 0.3, red at 1
 
             midpoint = 0.3 #midpoint of colour scale is green
-            if node_fraction<=midpoint:
+            if node_colour_fraction<=midpoint:
                 #colour scale is from blue to green
-                green = node_fraction/midpoint
+                green = node_colour_fraction/midpoint
                 blue =  1-green
                 red = 0
-            elif node_fraction>midpoint:
+            elif node_colour_fraction>midpoint:
                 #colour scale is from green to red
-                red = (node_fraction-midpoint)/(1-midpoint)
+                red = (node_colour_fraction-midpoint)/(1-midpoint)
                 green = 1-red
                 blue = 0
             
             #convert 24 bit RGB colour to the hex format expected by tkinter 
             self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
-    #FUNCTIONS TO DETERINE EDGE SIZE/COLOUR
+
+    #FUNCTIONS TO DETERINE EDGE WIDTH/COLOUR
+    #set edge width based on data about the edge (which data depends on mode)
+    def set_edge_widths(self):
+        num_edges = len(self.edge_end_indices)
+        if self.edge_width_type =="constant":
+            self.edge_width = [self.default_edge_width]*num_edges
+        else:
+            (forward_edge_data,reverse_edge_data) = self.extract_data_edges(self.edge_width_type)
+            if self.edge_direction_mode == 'forward':
+                data = np.asarray(forward_edge_data)
+            elif self.edge_direction_mode == 'reverse':
+                data = np.asarray(reverse_edge_data)
+            elif self.edge_direction_mode == 'both':
+                if self.edge_width_type == 'traffic':
+                    data = np.asarray(reverse_edge_data) + np.asarray(reverse_edge_data) #for both in traffic mode, combine the forward and reverse traffic for display
+                elif self.edge_width_type == 'time':
+                    data = (np.asarray(reverse_edge_data) + np.asarray(reverse_edge_data))/2 #in time mode(which is not yet implemented) , take the average 
+            
+            self.calculate_edge_widths(data)
+        
+
+    #calculate and perform final setting of edge width based on provided information        
+    def calculate_edge_widths(self,edges_quantity,mode='default'):
+        num_edges = len(edges_quantity)
+        total_quantity = np.max(edges_quantity)
+        for i in range(num_edges):
+            edge_fraction = edges_quantity[i]/total_quantity#fraction of total amount occuring at that node
+            self.edge_widths[i] = (edge_fraction**(1/self.custom_edge_exponent))*self.max_edge_width
+            if self.edge_widths[i] < self.min_edge_width: #enforce the minimum size of a node
+                self.edge_widths[i] = self.min_edge_width
+        
+
+    def set_edge_colours(self):
+        num_edges = len(self.edge_end_indices)
+        if self.edge_colour_type =="constant":
+            self.edge_colours = [self.default_edge_colour]*num_edges
+        else:
+            (forward_edge_data,reverse_edge_data) = self.extract_data_edges(self.edge_colour_type)
+            if self.edge_direction_mode == 'forward':
+                data = np.asarray(forward_edge_data)
+            elif self.edge_direction_mode == 'reverse':
+                data = np.asarray(reverse_edge_data)
+            elif self.edge_direction_mode == 'both':
+                if self.edge_colour_type == 'traffic':
+                    data = np.asarray(reverse_edge_data) + np.asarray(reverse_edge_data) #for both in traffic mode, combine the forward and reverse traffic for display
+                elif self.edge_colour_type == 'time':
+                    data = (np.asarray(reverse_edge_data) + np.asarray(reverse_edge_data))/2 #in time mode, take the average 
+            
+            self.calculate_edge_colours(data)
+
+    #calculate and perform final setting of edge width based on provided information        
+    def calculate_edge_colours(self,edges_quantity,mode='default'):
+        num_edges = len(edges_quantity)
+        total_quantity = np.max(edges_quantity)
+        for i in range(num_edges):
+            edge_fraction = edges_quantity[i]/total_quantity#fraction of total amount occuring at that node
+            #determine how far along the spectrum from blue to red through green the colour is
+            if mode=='default': #use custom scaling (by default square), good for passenger volumes
+                edge_colour_fraction = (edge_fraction**(1/self.custom_edge_exponent))
+            elif mode=='linear': #use linear scaling, good for distance to travel in smaller maps
+                edge_colour_fraction = edge_fraction
+            #convert node_colour_fraction to RGB, blue at 0, green at 0.3, red at 1
+
+            midpoint = 0.3 #midpoint of colour scale is green
+            if edge_colour_fraction<=midpoint:
+                #colour scale is from blue to green
+                green = edge_colour_fraction/midpoint
+                blue =  1-green
+                red = 0
+            elif edge_colour_fraction>midpoint:
+                #colour scale is from green to red
+                red = (edge_colour_fraction-midpoint)/(1-midpoint)
+                green = 1-red
+                blue = 0
+            
+            #convert 24 bit RGB colour to the hex format expected by tkinter
+            self.edge_colours[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
+
+
+
     #FUNCTIONS CONTROLLING RENDERING OF NODES/EDGES
     #wrapper that recalculates node sizes and colours, and redraws the nodes
     def update_nodes(self):
         self.set_node_sizes()
         self.set_node_colours()
+        self.render_graph()
+
+     #wrapper that recalculates edge sizes and colours, and redraws the edges
+    def update_edges(self):
+        self.set_edge_widths()
+        self.set_edge_colours()
         self.render_graph()
 
     #update text rendering next to nodes without changing the node whose information we are using (eg distance to/from that node)
@@ -721,14 +890,16 @@ class Display:
             end_x = self.nodes_x[end_index]
             end_y = self.nodes_y[end_index]
             colour = self.edge_colours[i]
-            width = self.edge_widths[i]
+            width = int(self.edge_widths[i]) #interesting thing about tkinter, circles can have non-integer sizes but lines need integer sizes
             edge_arrow = self.edge_arrows[i]
             #end_size = self.nodes_radii[end_index] #unused, we draw nodes over edges so no need to crop the edges
+            #print('width ', width)
+            #print('activewidth ',width+self.active_width_addition)
             if self.edge_canvas_ids[i]!='blank':
                 #delete the old line object if one exists
                 self.canvas.delete(self.edge_canvas_ids[i])
-
-            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=colour,disableddash=width,activewidth=width+self.active_width_addition,arrow=edge_arrow) #draw a line to represent the edge
+                
+            id = self.canvas.create_line(start_x,start_y,end_x,end_y,fill=colour,width=width,activewidth=width+self.active_width_addition,arrow=edge_arrow) #draw a line to represent the edge
             self.canvas.tag_bind(id,'<Enter>',self.edge_enter) #some information about the start and end nodes will be displayed when we mouse over an edge
             self.canvas.tag_bind(id,'<Leave>',self.edge_leave) #this information will stop being displayed when the mouse is no longer over the node
             self.edge_canvas_ids[i] = id
@@ -910,25 +1081,6 @@ class Display:
             data = self.sim_network.get_edge_traffic(edge_name)
         return data
 
-    #extract a type of data from all edges in the network
-    #def extract_data_edges(self,type):
-        #forward_edge_data = []
-        #reverse_edge_data = []
-        #if self.edge_direction_mode == 'forward' or self.edge_direction_mode == 'both':#extract data about all the forward edges         
-        #    for forward_edge_name in self.edge_names:
-        #        self.forward_edge_data.append(self.get_edge_data(forward_edge_name,type))
-
-        #if self.edge_direction_mode == 'reverse' or self.edge_direction_mode == 'both': #extract data about all the reverse edges
-        #    for reverse_edge_name in self.edge_reverse_names:
-        #        self.reverse_edge_data.append(self.get_edge_data(reverse_edge_name,type))
-    
-        #now return the produced data
-        #if self.edge_direction_mode == 'forward':
-        #    return forward_edge_data
-        #elif self.edge_direction_mode == 'reverse':
-        #    return reverse_edge_data
-        #elif self.edge_direction_mode == 'both':
-        #    return forward_edge_data,reverse_edge_data
 
     def extract_data_edges(self,type):
         forward_edge_data = []
@@ -1060,13 +1212,6 @@ class Display:
                     self.edge_arrows[edge_index] = tk.LAST
             else: #if we are not plotting arrows
                 self.edge_arrows[edge_index] = tk.NONE #don't plot arrows
-
-
-
-
-
-
-
 
     
 #EXTERNAL UTILITY FUNCTIONS
