@@ -41,6 +41,8 @@ class Display:
         #node text constants
         self.default_node_text_colour = 'black'
         self.default_edge_text_colour = 'purple'
+        #scroll constants
+        self.scroll_gain = 1 #how rapid should pan and scanning be
 
     #set the various flags (and modes) used by the rendering engine to their default value
     def set_default_flags(self):
@@ -75,6 +77,11 @@ class Display:
         self.canvas_center_y = int(self.canvas_height/2)
         self.canvas = tk.Canvas(self.window, bg="white", height=self.canvas_height, width=self.canvas_width)
         self.canvas.pack(side = tk.RIGHT)
+        #bind canvas to scroll options
+        self.canvas.bind("<MouseWheel>",self.zoom_canvas)
+        self.canvas.bind("<ButtonPress-1>",self.pan_start)
+        self.canvas.bind("<B1-Motion>",self.pan_end)
+        
 
     #setup the main control options
     def setup_main_controls(self):
@@ -1011,6 +1018,35 @@ class Display:
         #create the text popups, which are not interactive
         self.text_id_line_start = self.canvas.create_text(start_x,start_y-15,text=display_text_start,state=tk.DISABLED)
         self.text_id_line_end = self.canvas.create_text(end_x,end_y-15,text=display_text_end,state=tk.DISABLED)
+
+    #GENERAL CANVAS EVENT HANDLERS (FOR SCROLLING and ZOOMING IN/OUT)
+    #zoom in/out
+    def zoom_canvas(self,event):
+        #get position of mouse during scroll
+        mouse_x = self.canvas.canvasx(event.x)
+        mouse_y = self.canvas.canvasy(event.y)
+        zoom_factor = 1+(0.01*event.delta) #zoom is in proportion to scroll wheel direction and magnitude
+        self.canvas.scale('all',mouse_x,mouse_y,zoom_factor,zoom_factor)
+    
+    #define pan function
+    def pan_start(self,event):
+        #get position of mouse at start of pan
+        #mouse_x = int(self.canvas.canvasx(event.x))
+        #mouse_y = int(self.canvas.canvasy(event.y))
+        #print('mouse x ',mouse_x,' mouse y ',mouse_y)
+        self.canvas.scan_mark(event.x, event.y) #record the position of start of scan
+    
+    #define scan function
+    def pan_end(self,event):
+        #get position of mouse at start of pan
+        #mouse_x = int(self.canvas.canvasx(event.x))
+        #mouse_y = int(self.canvas.canvasy(event.y))
+        #print('mouse x ',mouse_x,' mouse y ',mouse_y)
+        self.canvas.scan_dragto(event.x, event.y,gain=self.scroll_gain) #record the position of start of scan
+
+
+
+
 
     #event for when we mouse away from an edge
     def edge_leave(self,event):
