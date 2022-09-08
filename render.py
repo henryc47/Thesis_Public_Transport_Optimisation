@@ -43,6 +43,9 @@ class Display:
         self.default_edge_text_colour = 'purple'
         #scroll constants
         self.scroll_gain = 1 #how rapid should pan and scanning be
+        #id of text above nodes at ends of activated edges, needs to be deleted when the edge is left
+        self.text_id_line_end = -1 #default value, to indicate no such object
+        self.text_id_line_start = -1 #default value, to indicate no such object
 
     #set the various flags (and modes) used by the rendering engine to their default value
     def set_default_flags(self):
@@ -79,8 +82,12 @@ class Display:
         self.canvas.pack(side = tk.RIGHT)
         #bind canvas to scroll options
         self.canvas.bind("<MouseWheel>",self.zoom_canvas)
-        self.canvas.bind("<ButtonPress-1>",self.pan_start)
-        self.canvas.bind("<B1-Motion>",self.pan_end)
+        #TEMP DISABLE PANNING
+        #self.canvas.bind("<ButtonPress-1>",self.pan_start)
+        #self.canvas.bind("<B1-Motion>",self.pan_end)
+        self.current_zoom = 1 #current zoom level
+        self.current_zoom_offset_x = 0 #how much is the display x origin offset from the true x origin
+        self.current_zoom_offset_y = 0 #how much is the display y origin offset from the true y origin
         
 
     #setup the main control options
@@ -865,6 +872,10 @@ class Display:
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
             self.nodes_x.append(x)
             self.nodes_y.append(y)
+        #original copy of node position, so that scaling can be calculated relative to the original values
+        self.nodes_x_original = self.nodes_x
+        self.nodes_y_original = self.nodes_y
+
 
     #calculate the midpoint of edges, used for plotting overlay text on edges
     #this needs to be done after node positions are calculated
@@ -883,11 +894,24 @@ class Display:
             #and store this calculated value in a list
             self.edges_midpoint_x.append(edge_midpoint_x)
             self.edges_midpoint_y.append(edge_midpoint_y)
+        
+        #original copy of edge midpoints, so that scaling can be calculated relative to the original values
+        self.edges_midpoint_x_original = self.edges_midpoint_x
+        self.edges_midpoint_y_original = self.edges_midpoint_y
 
     #FUNCTIONS PERFORMING ACTUAL RENDERING
 
+    #derender edge text created by hovering
+    def derender_hover_edge_text(self):
+        if self.text_id_line_end != -1: #if such text exists
+            self.canvas.delete(self.text_id_line_end)
+            self.canvas.delete(self.text_id_line_start)
+            self.text_id_line_start =  -1
+            self.text_id_line_end = -1
+
     #needs to be run after edges have been extracted and nodes have been drawn to work correctly
     def render_edges(self):
+        self.derender_hover_edge_text()#derender additional edge text if it exists
         num_edges = len(self.edge_start_indices)
         for i in range(num_edges):
             start_index = self.edge_start_indices[i]
@@ -942,6 +966,7 @@ class Display:
 
     #stop displaying all the nodes and edges
     def erase_network_graph(self):
+        self.derender_hover_edge_text()
         #erase all edges
         for id in self.edge_canvas_ids:
             if id!='blank':
@@ -1016,8 +1041,17 @@ class Display:
         display_text_start = "Node : " + self.node_names[start_index]
         display_text_end = "Node : " + self.node_names[end_index]
         #create the text popups, which are not interactive
+        if self.text_id_line_start != -1:
+            #delete any existing popups
+            self.canvas.delete(self.text_id_line_start)    
+            self.canvas.delete(self.text_id_line_end)
         self.text_id_line_start = self.canvas.create_text(start_x,start_y-15,text=display_text_start,state=tk.DISABLED)
         self.text_id_line_end = self.canvas.create_text(end_x,end_y-15,text=display_text_end,state=tk.DISABLED)
+
+
+    #event for when we mouse away from an edge
+    def edge_leave(self,event):
+        self.derender_hover_edge_text() #delete any hovering text related to the edge
 
     #GENERAL CANVAS EVENT HANDLERS (FOR SCROLLING and ZOOMING IN/OUT)
     #zoom in/out
@@ -1025,9 +1059,48 @@ class Display:
         #get position of mouse during scroll
         mouse_x = self.canvas.canvasx(event.x)
         mouse_y = self.canvas.canvasy(event.y)
-        zoom_factor = 1+(0.01*event.delta) #zoom is in proportion to scroll wheel direction and magnitude
-        self.canvas.scale('all',mouse_x,mouse_y,zoom_factor,zoom_factor)
+        #print('mouse x ',mouse_x,' mouse y ',mouse_y)
+        zoom_delta = 0.01*event.delta #zoom is in proportion to scroll wheel direction and magnitude
+        #self.current_scale = self.current_scale + zoom_delta #update the scale
+        #self.zoom_offset_x = self.zoom_offset_x - mouse_x*zoom_delta#calculate the new offset for x
+        #self.zoom_offset_y = self.zoom_offset_y - mouse_y*zoom_delta#calculate the new offset for y
+        self.apply_correct_zoom(zoom_delta,mouse_x,mouse_y) #perform the zoom on all objects in an image
     
+    #create new objects in the correctly zoomed position
+    def apply_correct_zoom(self,zoom_delta,mouse_x,mouse_y):
+        #update the graph
+        self.recalculate_nodes_position(zoom_delta,mouse_x,mouse_y)
+        self.recalculate_edge_midpoints(zoom_delta,mouse_x,mouse_y)
+        self.render_graph()
+        #update text overlays
+        self.update_text_same_node() 
+        self.generate_edge_overlay_text()
+
+    #recalculate all node positions in response to the zoom action
+    def recalculate_nodes_position(self,zoom_delta,mouse_x,mouse_y):
+        num_nodes = len(self.nodes_x)
+        #recalculate the position of all nodes
+        for i in range(num_nodes):
+            new_x,new_y = self.recalculate_zoom_position(self.nodes_x[i],self.nodes_y[i],zoom_delta,mouse_x,mouse_y)
+            self.nodes_x[i] = new_x
+            self.nodes_y[i] = new_y
+    
+    #recalculate the midpoint of all edges
+    def recalculate_edge_midpoints(self,zoom_delta,mouse_x,mouse_y):
+        num_edges = len(self.edges_midpoint_x)
+        #recalculate the position of all edge midpoints
+        for i in range(num_edges):
+            new_x,new_y = self.recalculate_zoom_position(self.edges_midpoint_x[i],self.edges_midpoint_y[i],zoom_delta,mouse_x,mouse_y)
+            self.edges_midpoint_x[i] = new_x
+            self.edges_midpoint_y[i] = new_y
+
+    #recalculate the position of an object to be correct under the new zoom regime
+    def recalculate_zoom_position(self,x,y,zoom_delta,mouse_x,mouse_y):
+        new_x = x*(1+zoom_delta)-(mouse_x*zoom_delta)
+        new_y = y*(1+zoom_delta)-(mouse_y*zoom_delta)
+        return new_x,new_y
+
+
     #define pan function
     def pan_start(self,event):
         #get position of mouse at start of pan
@@ -1045,13 +1118,6 @@ class Display:
         self.canvas.scan_dragto(event.x, event.y,gain=self.scroll_gain) #record the position of start of scan
 
 
-
-
-
-    #event for when we mouse away from an edge
-    def edge_leave(self,event):
-        self.canvas.delete(self.text_id_line_start)
-        self.canvas.delete(self.text_id_line_end)
 
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE NODES
 
@@ -1150,10 +1216,7 @@ class Display:
                     edges_text.append(format(reverse_edge_data[i],'.2f') + '/' + format(reverse_edge_data[i],'.2f'))
 
         return edges_text
-    #if type == 'time':
-    #type == 'traffic'
-    #self.edge_direction_mode
-    #self.edges_numeric_overlay_mode
+
     #generate and plot the overlay text for edges
     def generate_edge_overlay_text(self):
         if self.edges_numeric_overlay_mode == 'no_info':
