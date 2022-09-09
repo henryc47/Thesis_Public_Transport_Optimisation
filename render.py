@@ -83,8 +83,8 @@ class Display:
         #bind canvas to scroll options
         self.canvas.bind("<MouseWheel>",self.zoom_canvas)
         #TEMP DISABLE PANNING
-        #self.canvas.bind("<ButtonPress-1>",self.pan_start)
-        #self.canvas.bind("<B1-Motion>",self.pan_end)
+        self.canvas.bind("<ButtonPress-1>",self.pan_start)
+        self.canvas.bind("<B1-Motion>",self.pan_end)
         self.current_zoom = 1 #current zoom level
         self.current_zoom_offset_x = 0 #how much is the display x origin offset from the true x origin
         self.current_zoom_offset_y = 0 #how much is the display y origin offset from the true y origin
