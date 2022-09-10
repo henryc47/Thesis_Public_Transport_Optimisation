@@ -194,6 +194,7 @@ class Display:
         #print a relevant message if import successful
         if import_successful:
             import_files_message = import_files_message + " files imported successfully"
+            self.simulation_setup_flag = False #we have not setup the simulation for the new files
         else:
             import_files_message = import_files_message + " file import failed"
         
@@ -1007,7 +1008,7 @@ class Display:
         self.log_print('node viewed ' + node_name)
         x = self.nodes_x[id_index]
         y = self.nodes_y[id_index]
-        display_text = "Node : " + node_name
+        display_text = node_name
         self.text_id = self.canvas.create_text(x,y-15,text=display_text,state=tk.DISABLED) #create a text popup, which is not interactive
 
     #event for when the mouse leaves a node, remove the text box
@@ -1059,8 +1060,8 @@ class Display:
         end_x = self.nodes_x[end_index]
         end_y = self.nodes_y[end_index]
         #decide on the text popup above each node
-        display_text_start = "Node : " + self.node_names[start_index]
-        display_text_end = "Node : " + self.node_names[end_index]
+        display_text_start = self.node_names[start_index]
+        display_text_end = self.node_names[end_index]
         #create the text popups, which are not interactive
         if self.text_id_line_start != -1:
             #delete any existing popups
