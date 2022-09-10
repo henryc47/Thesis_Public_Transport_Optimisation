@@ -82,7 +82,6 @@ class Display:
         self.canvas.pack(side = tk.RIGHT)
         #bind canvas to scroll options
         self.canvas.bind("<MouseWheel>",self.zoom_canvas)
-        #TEMP DISABLE PANNING
         self.canvas.bind("<ButtonPress-1>",self.pan_start)
         self.canvas.bind("<B1-Motion>",self.pan_end)
         self.current_zoom = 1 #current zoom level
@@ -129,7 +128,11 @@ class Display:
         #this button will draw the network
         self.draw_network_button = tk.Button(master=self.main_controls,text="DRAW NETWORK",fg='black',bg='white',command=self.draw_network_click,width=20)
         self.draw_network_button.pack()
-        #this button will start the simulation
+        #create a button to select whether to display all node names
+        self.node_names_button = tk.Button(master=self.main_controls,text="HOVER NODE NAMES",fg='black',bg='white',command=self.node_names_click,width=20,height=1)
+        self.node_names_button.pack()
+        self.node_names_mode = 'no_names'
+        #this button will setup the simulation
         self.setup_simulation_button = tk.Button(master=self.main_controls,text="SETUP SIMULATION",fg='black',bg='white',command=self.setup_simulation_click,width=20)
         self.setup_simulation_button.pack()
         #this label will provide information to the user
@@ -201,8 +204,9 @@ class Display:
     def draw_network_click(self):      
         if self.first_render_flag==False:
             self.erase_network_graph()
+            self.erase_all_nodes_text('both')
+            self.erase_all_edges_text()
         if self.simulation_setup_flag:
-            self.erase_all_nodes_text()
             self.erase_all_edges_text() 
         self.extract_nodes_graph()
         self.calculate_node_position()
@@ -291,12 +295,30 @@ class Display:
         self.edge_colour_button.pack()
         self.edge_colour_type = "constant" #by default, edges will be a constant size
 
-
     #delete the network_viz tool controls 
     def clear_network_viz_tools(self):
         self.network_viz.destroy()
 
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
+    #command for button to switch between displaying and not displaying node names
+    def node_names_click(self):
+        #update mode
+        if self.node_names_mode == 'no_names':
+            self.node_names_mode = 'display_names'
+        elif self.node_names_mode == 'display_names':
+            self.node_names_mode = 'no_names'
+        #perform the actual update of the button and the rendering
+        self.node_names_update()    
+    
+    #perform the actual update between displaying and not displaying node names
+    def node_names_update(self):
+        if self.node_names_mode == 'no_names':
+            self.node_names_button.config(text="HOVER NODE NAMES")
+            self.erase_all_nodes_text(mode='above') #clear away node name text
+        elif self.node_names_mode == 'display_names':
+            self.node_names_button.config(text="DISPLAY NODE NAMES")
+            self.display_text_info_node(self.node_names,where_mode='above') #display node names on the map
+
 
     #command for button to switch whether numeric information (eg num passengers) will be displayed next to all relevant nodes
     def nodes_numeric_overlay_click(self):
@@ -745,15 +767,13 @@ class Display:
     def update_text_same_node(self):
         if self.nodes_numeric_overlay_mode == 'node_total':
         #if we are overlaying based on total traffic too/from node, the key node does not matter, so we can display info without it
-            self.erase_all_nodes_text() #erase all text already displayed
-            self.text_total_passengers_node() #replace with new info about total traffic too/from a node    
+            self.text_total_passengers_node() #replace with new info about total traffic too/from a node 
         #otherwise don't update if no node-specific text was being displayed in the first place
         elif self.last_node_left_click_index == -1:
-            self.erase_all_nodes_text() #erase all text already displayed
-            pass
+            self.erase_all_nodes_text('below') #erase all text already displayed
         else:         
             last_click_index = self.last_node_left_click_index
-            self.erase_all_nodes_text() #erase all text already displayed
+            self.erase_all_nodes_text('below') #erase all text already displayed
             self.last_node_left_click_index = -1 #set this to -1 so update_nodes_viewing_mode correctly renders with a different mode (note keep this here for redunancy in case end up removing the reset from erase_all_nodes_text)
             self.update_nodes_viewing_mode_left_click(last_click_index) #update the render
             self.last_node_left_click_index = last_click_index #set last left click index back to it's previous value so we can still remove info by clicking on that node again
@@ -763,11 +783,11 @@ class Display:
         if self.nodes_numeric_overlay_mode == 'node_total':
              self.text_total_passengers_node() #display the total number of passengers going too/from all nodes
         elif self.last_node_left_click_index == left_click_index: #if the same node has been clicked on again
-            self.erase_all_nodes_text() #reset all text
+            self.erase_all_nodes_text('below') #reset all text
             self.last_node_left_click_index = -1
         else: #otherwise, display info text for new node
             if self.nodes_numeric_overlay_mode == 'no_info':
-                self.erase_all_nodes_text() #reset all text, as not used in this mode
+                self.erase_all_nodes_text('below') #reset all text, as not used in this mode
             elif self.nodes_numeric_overlay_mode == 'node_relative':
                 self.text_passengers_node(left_click_index) #display the number of passengers going too/from this particular node
             elif self.nodes_numeric_overlay_mode == 'node_distance':
@@ -866,7 +886,8 @@ class Display:
         self.nodes_y = []
         self.nodes_radii = [self.default_node_radius]*num_nodes #default size for nodes
         self.nodes_colour = [self.default_node_colour]*num_nodes #default
-        self.node_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed next to all nodes
+        self.node_below_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed below all nodes
+        self.node_above_text_ids = ['blank']*num_nodes  #canvas ids for text which could be displayed above all nodes
         self.node_canvas_ids = ['blank']*num_nodes #canvas ids for the nodes themsleves
         for i in range(num_nodes):
             x,y = self.convert_lat_long_to_x_y(self.node_latitudes[i],self.node_longitudes[i])
@@ -1072,9 +1093,13 @@ class Display:
         self.recalculate_nodes_position(zoom_delta,mouse_x,mouse_y)
         self.recalculate_edge_midpoints(zoom_delta,mouse_x,mouse_y)
         self.render_graph()
-        #update text overlays
-        self.update_text_same_node() 
-        self.generate_edge_overlay_text()
+        self.node_names_update() #update the rendering of node names
+        #update text overlays if simulation has been setup
+        if self.simulation_setup_flag:
+            self.update_text_same_node() 
+            self.generate_edge_overlay_text()
+        
+        
 
     #recalculate all node positions in response to the zoom action
     def recalculate_nodes_position(self,zoom_delta,mouse_x,mouse_y):
@@ -1121,57 +1146,72 @@ class Display:
 
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE NODES
 
-    #display the number of passengers travelling to/from a node to all other nodes (per hour as currently setup) as text above the nodes
+    #display the number of passengers travelling to/from a clicked node to all other nodes (per hour as currently setup) as text above the nodes
     def text_passengers_node(self,key_node_index):
         if self.from_node:
             trips = self.sim_network.origin_destination_trips[key_node_index,:] #extract number of trips starting from this node
         else:
             trips = self.sim_network.origin_destination_trips[:,key_node_index] #extract number of trips going to this node
 
-        self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at every other node
-    
+        self.display_text_info_node(trips,where_mode='below',type_mode='float') #display the number of trips starting/ending at every other node
+
+    #display the number of passengers travelling to/from a node to all other nodes combined (per hour as currently setup) as text above the nodes 
     def text_total_passengers_node(self):
         if self.from_node:
             trips = np.sum(self.sim_network.origin_destination_trips,0)#extract number of trips starting from all nodes
         else:
             trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
 
-        self.display_text_info_above_node(trips,mode='float') #display the number of trips starting/ending at each node node
+        self.display_text_info_node(trips,where_mode='below',type_mode='float') #display the number of trips starting/ending at each node node
     
-    #display the number of passengers travelling to/from a node to all other nodes (per hour as currently setup) as text above the nodes
+    #display the journey time from the clicked node to other nodes as text above the node
     def text_journeys_node(self,key_node_index):
         if self.from_node:
             times = self.sim_network.distance_to_all[key_node_index,:] #extract journey times starting at this node
         else:
             times = self.sim_network.distance_to_all[:,key_node_index] #extract journey times going to this node
         
-        self.display_text_info_above_node(times,mode='integer') #display journey times to/from every other node
+        self.display_text_info_node(times,type_mode='integer',where_mode='below') #display journey times to/from every other node
 
-    #perform the actual text rendering for all nodes
-    def display_text_info_above_node(self,info,mode):
+    #perform the actual text rendering of text near all nodes
+    #whether this happens above or below all nodes can be selected 
+    def display_text_info_node(self,info,where_mode='below',type_mode='text'):
         num_nodes = len(self.node_names)
-        self.erase_all_nodes_text() #clear any old text
-        self.node_text_ids = ['blank']*num_nodes #create a container for the new text ids
+        self.erase_all_nodes_text(mode=where_mode) #clear any old text
+        if where_mode=='below':
+            self.node_below_text_ids = ['blank']*num_nodes #create a container for the new text ids
+        elif where_mode=='above':
+            self.node_above_text_ids = ['blank']*num_nodes #create a container for the new text ids
         for i in range(num_nodes): #for every node
             node_x = self.nodes_x[i]
             node_y = self.nodes_y[i]
             this_info = info[i]
-            if mode=='float':
+            if type_mode=='float':
                 this_info = "{:.2f}".format(this_info) #floating point data
-            elif mode=='integer':
+            elif type_mode=='integer':
                 this_info = str(this_info) #integer data
-            
-            self.node_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
+            if where_mode=='below':
+                self.node_below_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
+            elif where_mode=='above':
+                self.node_above_text_ids[i] = self.canvas.create_text(node_x,node_y-15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
+
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
-    def erase_all_nodes_text(self):
-        self.last_node_left_click_index = -1 #we are deleting all nodes text, so reset if any nodes have been clicked
-        for id in self.node_text_ids:
+    def erase_all_nodes_text(self,mode='both'):
+        #self.last_node_left_click_index = -1 #we are deleting all nodes text, so reset if any nodes have been clicked
+        #text to delete depends on mode
+        if mode == 'above':
+            text_ids = self.node_above_text_ids
+        elif mode == 'below':
+            text_ids = self.node_below_text_ids
+        elif mode == 'both':
+            text_ids = self.node_above_text_ids + self.node_below_text_ids
+        #delete the selected text
+        for id in text_ids:
             if id!='blank':
                 self.canvas.delete(id)
 
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE EDGES
-    #render text above edges
 
     #get data about a specific edge from the network
     #valid types are "time" and "traffic"
