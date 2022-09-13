@@ -4,5 +4,4 @@
 
 class Agent:
     def __init__(self,start_node,destination_node):
-        
 

@@ -1,14 +1,27 @@
 #schedule.py
 #schedule class, stores the list of nodes the vehicle is trying to reach, and the edge needed to reach each node
 import numpy as np
+import copy as copy
 
 class Schedule:
-    
     #initialise the empty schedule
     def __init__(self,name):
         self.name = name#starting node of the schedule, useful for assigning schedules to vehicles
         self.nodes = [] #list of destinations (reference to a node)
         self.edges = [] #list of edges to reach each destination from previous location (reference to an edge)
+        self.schedule_times = [] #list of times when we will reach the nodes we are travelling toos
+
+    #create a shallow copy of the object and all it's internal data-structures, however maintain same references to nodes and edges
+    def __copy__(self):
+        #create a schedule object
+        copy_schedule = Schedule(self.name)
+        copy_schedule.nodes = copy.copy(self.nodes)
+        copy_schedule.edges = copy.copy(self.edges)
+        copy_schedule.schedule_times = copy.copy(self.schedule_times)
+        return copy_schedule
+        
+
+
 
     #add the first destination to the schedule
     def add_start_node(self,start_node):
@@ -22,6 +35,7 @@ class Schedule:
 
     #provide next destination, note this requires you to have first deleted the initial destination to work correctly
     def provide_next_destination(self):
+        #print('providing next destination, num nodes ',len(self.nodes),' num edges ',len(self.edges)) #DEBUG
         if len(self.nodes)==0:
             return False#return false to indicate there are no more destinations, schedule is finished
         if len(self.nodes)>len(self.edges): #provide the start point if we are yet to remove it
@@ -42,9 +56,10 @@ class Schedule:
             del self.edges[0]
             return True#return true to indicate operation successful
     
-    def provide_name(self,name):
+    def provide_name(self):
         return self.name
     
+    #this 
     def add_schedule_times(self,arrival_times):
         self.schedule_times = arrival_times #this is a numpy array
 

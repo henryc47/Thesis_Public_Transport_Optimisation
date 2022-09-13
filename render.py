@@ -225,10 +225,14 @@ class Display:
         self.log_print(simulation_setup_message)
         self.message_update(simulation_setup_message)
         if self.simulation_setup_flag:   #only setup network visulisation tools if they have not already been created
-            pass
+            #if they have been recreated we need to destroy the old tools
+            self.clear_network_viz_tools()
+            self.setup_network_viz_tools()
         else:
             self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
-            self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
+        
+        self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
+        
 
     #switch logging levels (verbosity level)
     def verbose_button_click(self):
@@ -299,6 +303,8 @@ class Display:
     #delete the network_viz tool controls 
     def clear_network_viz_tools(self):
         self.network_viz.destroy()
+        self.simulation_setup_flag = False #record that the simulation has not been setup 
+
 
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
     #command for button to switch between displaying and not displaying node names

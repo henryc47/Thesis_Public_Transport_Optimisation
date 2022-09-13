@@ -14,7 +14,7 @@ class Vehicle:
         self.schedule.offset_schedule_times(start_time)#adjust the schedule to reflect the time we started
         self.number_passengers = 0 #current number of passengers aboard the vehicle
         check,self.previous_stop = self.schedule.provide_next_destination()
-        check = self.remove_reached_destination() #remove starting destination from list of destinations
+        check = self.schedule.remove_reached_destination() #remove starting destination from list of destinations
     
 
     def update(self):
@@ -54,7 +54,7 @@ class Vehicle:
             latitude = self.previous_stop.latitude*(1-fraction_moved) + (self.next_destination.latitude*fraction_moved)
             longitude = self.previous_stop.longitude*(1-fraction_moved) + (self.next_destination.longitude*fraction_moved)
         
-        return latitude,longitude
+        return latitude,longitudes
     
 
 

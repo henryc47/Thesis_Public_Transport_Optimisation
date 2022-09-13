@@ -7,6 +7,7 @@ import numpy as np #for large scale mathematical operations
 import time as time #for benchmarking
 import schedule as schedule
 import vehicle as vehicle
+import copy as copy #for shallow-copying schedules
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -168,7 +169,6 @@ class Network:
         self.vehicles = [] #container to store vehicles in
         self.vehicle_names = [] #container to store vehicle names in, note this is just schedule name followed by initial departure time
         #set the simulation timestamp to be 0 (start of simulation)
-
         self.time = 0
 
 
@@ -176,23 +176,43 @@ class Network:
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
         vehicle_name = str(self.time) + " " + schedule.provide_name() #calculate the vehicles name
-        junk,start_node = schedule.provide_next_destination() #extract the first destination of the schedule
+        #produce a shallow copy of the schedule to provide to the vehicle, note we use a class defined implemention of shallow-copying
+        copy_schedule = copy.copy(schedule) #copy the schedule object, but maintain keep references to node/edges identical
+        junk,start_node = copy_schedule.provide_next_destination() #extract the first destination of the schedule
         start_node_index = self.get_node_index(start_node.name)
         self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
         self.vehicle_names.append(vehicle_name) #add the vehicles name to the list
-        self.vehicles.append(vehicle.Vehicle(schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
+        self.vehicles.append(vehicle.Vehicle(copy_schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
         if self.verbose>=1:
-            print('a vehicle ', vehicle_name, ' has been created at ',start_node, ' at time ',self.time)
+            print('a vehicle ', vehicle_name, ' has been created at ',start_node.name, ' at time ',self.time)
 
     #this function updates all the vehicle objects in the network
     def move_vehicles(self):
         for vehicle in self.vehicles:
             vehicle.update()
-        
+
+    #create vehicles at nodes as needed by the schedule
+    def assign_vehicles_schedule(self):
+        #run through the all the schedules in the dispatch list
+        num_schedules = len(self.schedules)
+        for i in range(num_schedules):
+            if self.time == self.dispatch_schedule[i]:#if a schedule is too be dispatched at the current time
+                #a vehicle is to be dispatched, so create a vehicle here
+                self.create_vehicle(self.schedules[i])
+                self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
+    #update time by one unit        
+    def update_time(self):
+        self.assign_vehicles_schedule() #create new vehicles at scheduled locations
+        self.time = self.time + 1 #increment time
+
+    #run for a certain amount of time
+    def basic_sim(self,stop_time):
+        while self.time<stop_time:#till we reach the specified time
+            self.update_time() #run the simulation
+
 
         
-        
-
+    
     #create the schedule and functionality needed for scheduling
     def create_schedules(self,schedule_csv):
         self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
