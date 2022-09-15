@@ -156,12 +156,7 @@ class Network:
         if self.verbose>=1:
             print('time to calculate traffic along each edge ',time2-time1, ' seconds')
 
-        #now create the schedules
-        time1 = time.time()
-        self.create_schedules(schedule_csv)
-        time2 = time.time()
-        if self.verbose>=1:
-            print('time to extract schedules', time2-time1, ' seconds')
+        self.schedule_csv = schedule_csv
         
         #setup for vehicle simulations
         self.num_vehicles_started_here = np.zeros(num_nodes) #store the number of vehicles on the network which started from a particular node
@@ -213,13 +208,16 @@ class Network:
                 self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
     #update time by one unit        
     def update_time(self):
-        print(self.time) #DEBUG
+        if self.verbose>=1:
+            print('time ', self.time)
         self.assign_vehicles_schedule() #create new vehicles at scheduled locations
         self.move_vehicles() #move vehicles around the network
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time
     def basic_sim(self,stop_time):
+        self.create_schedules(self.schedule_csv)
+        self.time = 0
         while self.time<stop_time:#till we reach the specified time
             self.update_time() #run the simulation
 
