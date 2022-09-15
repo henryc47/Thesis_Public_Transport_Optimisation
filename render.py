@@ -245,6 +245,11 @@ class Display:
         else: #if verbosity already at highest level or is unset, select minimum verbosity 
             self.verbose_button.config(text='NO LOGGING')
             self.verbose = 0
+        if self.simulation_setup_flag == True:#also update the logging level in the simulation if it exists
+            self.log_print('SIMULATION LOG LEVEL UPDATED TO '+ str(self.verbose),2)
+            self.sim_network.verbose = self.verbose
+
+
 
     #NETWORK VIZ TOOLS
     #tools for exploring aspects of the simulated network which do not depend on actual simulation
@@ -1201,7 +1206,6 @@ class Display:
                 self.node_below_text_ids[i] = self.canvas.create_text(node_x,node_y+15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
             elif where_mode=='above':
                 self.node_above_text_ids[i] = self.canvas.create_text(node_x,node_y-15,text=this_info,state=tk.DISABLED,fill=self.default_node_text_colour) #create a text popup, which is not interactive
-
 
     #erase text displayed next to all nodes (eg num passengers/journey time)
     def erase_all_nodes_text(self,mode='both'):

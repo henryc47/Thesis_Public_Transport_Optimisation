@@ -13,34 +13,51 @@ class Vehicle:
         self.state = 'at_stop' #vehicle states are 'at_stop' and 'moving'
         self.schedule.offset_schedule_times(start_time)#adjust the schedule to reflect the time we started
         self.number_passengers = 0 #current number of passengers aboard the vehicle
-        check,self.previous_stop = self.schedule.provide_next_destination()
+        check,self.previous_stop = self.schedule.provide_next_destination() #get the starting destination which will be stored as the previous stop
         check = self.schedule.remove_reached_destination() #remove starting destination from list of destinations
-    
+        self.final_destination = self.schedule.provide_final_destination() #get the final destination as well
 
+    #move the vehicle around the network according to its schedule
     def update(self):
-        if self.state == 'at_stop':
-            check,self.next_destination,self.next_edge = self.schedule.provide_next_destination() #get the destination we are moving towards and the edge we will move on
-            if check==False:#vehicle has reached it's destination
+        if self.state == 'at_stop': #if the vehicle was at a stop
+            #add some code to disembark passengers
+            #add some code to pick up passengers
+            if self.final_destination == self.previous_stop: #if vehicle has reached it's destination                
                 return False #return false to indicate it should be deleted
-
-            self.schedule.remove_reached_destination() #remove these from the schedule
-            self.edge_length = self.next_edge.provide_travel_time() #how long will it take to reach the next destination
-            if self.edge_length==1: #minimum traversal time is 1
+            #if vehicle has not reached it's final destination
+            check,self.next_destination,self.next_edge = self.schedule.provide_next_destination() #extract next destination and how to get there
+            self.edge_length = self.next_edge.provide_travel_time() #store the length of the next edge
+            if self.edge_length == 1: #if edge takes only 1 time unit to traverse
+                #we are immediately at the next destination
                 self.state = 'at_stop'
-                self.previous_stop = self.next_destination #former next destination is now the previous destination
+                self.previous_stop = self.next_destination
+                self.schedule.remove_reached_destination() #remove the previous destination
             else:
+                #we are now moving towards the next destination
                 self.state = 'moving'
                 self.move_timer = 1#start the move timer, we will move 1 unit of time
 
-        elif self.state == 'moving':
+        elif self.state == 'moving': #if the vehicle was moving
             if self.move_timer == self.edge_length-1: # we have reached the next station
-                self.state == 'at_stop'
-                self.previous_stop = self.next_destination #former next destination is now the previous destination
+                self.state = 'at_stop'
+                self.previous_stop = self.next_destination
+                self.schedule.remove_reached_destination() # remove the previous destination
             else:
-                self.state == 'at_stop'
-                self.move_timer += 1 #increment the move timer
-        
-        return True #to indicate update is successful, vehicle has not reached destination
+                #we are still moving towards the next destination
+                self.state = 'moving'
+                self.move_timer = self.move_timer + 1
+    
+        return True          
+
+    #print where the vehicle is
+    def verbose_position(self):
+        print('vehicle ',self.name,' is ',self.state, 'previous stop is ',self.previous_stop.name,' next stop is ',self.next_destination.name,' move timer is ',self.move_timer)
+    
+    #print when the vehicle is at a stop
+    def verbose_stop(self):
+        if self.state == 'at_stop':
+            print('vehicle ',self.name,' stopped at ', self.previous_stop.name)
+
 
     def get_coordinates(self):
         if self.state == 'at_stop':
@@ -54,7 +71,7 @@ class Vehicle:
             latitude = self.previous_stop.latitude*(1-fraction_moved) + (self.next_destination.latitude*fraction_moved)
             longitude = self.previous_stop.longitude*(1-fraction_moved) + (self.next_destination.longitude*fraction_moved)
         
-        return latitude,longitudes
+        return latitude,longitude
     
 
 

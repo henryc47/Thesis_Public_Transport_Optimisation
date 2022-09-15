@@ -65,8 +65,7 @@ class Node:
             return (True,time_taken) #True to indicate search operation was successful
         except ValueError: #edge name not in list of provided eges
             print('edge ', edge_name, ' not in list of edges starting at this node')
-            return False #False to indicate search operation unsuccessful
-
+            return False #False to indicate search operation unsuccessful 
 
     #return the time taken to travel to all neighbouring nodes and the names of the destination 
     def provide_nodes_time(self):
@@ -188,8 +187,20 @@ class Network:
 
     #this function updates all the vehicle objects in the network
     def move_vehicles(self):
-        for vehicle in self.vehicles:
-            vehicle.update()
+        for count,vehicle in enumerate(self.vehicles):
+            #logging
+            if self.verbose==1:
+                vehicle.verbose_stop()
+            elif self.verbose>=2:
+                vehicle.verbose_position()
+            not_reached_destination = vehicle.update()
+            if not_reached_destination == False:
+                if self.verbose>=1:
+                    print('a vehicle ', vehicle.name, ' has reached the end of its path ', vehicle.next_destination.name ," at time ", self.time)
+                del self.vehicles[count] #remove the vehicle when it has reached it's destination
+
+
+
 
     #create vehicles at nodes as needed by the schedule
     def assign_vehicles_schedule(self):
@@ -202,7 +213,9 @@ class Network:
                 self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
     #update time by one unit        
     def update_time(self):
+        print(self.time) #DEBUG
         self.assign_vehicles_schedule() #create new vehicles at scheduled locations
+        self.move_vehicles() #move vehicles around the network
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time
@@ -500,6 +513,15 @@ class Network:
         for i in range(num_schedules):
             self.schedules[i].test_schedule()
         
+    def test_verbose(self):
+        print('verbosity = ',self.verbose)
+        if self.verbose==0:
+            print('verbosity is 0')
+        if self.verbose>=1:
+            print('verbosity is greater or equal to 1')
+        if self.verbose>=2:
+            print('verbosity is greater or equal to 2')
+
 
 #assign trips between origin destination pairs using the gravity model
 #starts/stops are number of passengers starting/stopping at particular nodes (1D Numpy array)
@@ -616,5 +638,4 @@ def extract_schedule_list_txt(schedule_string):
     nodes.append("".join(new_node))
     return nodes
 
-    
 

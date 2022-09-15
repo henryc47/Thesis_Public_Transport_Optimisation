@@ -20,9 +20,6 @@ class Schedule:
         copy_schedule.schedule_times = copy.copy(self.schedule_times)
         return copy_schedule
         
-
-
-
     #add the first destination to the schedule
     def add_start_node(self,start_node):
         self.nodes.append(start_node)
@@ -32,6 +29,11 @@ class Schedule:
         self.nodes.append(next_node)
         self.edges.append(next_edge)
 
+    #provide final destination in the schedule
+    def provide_final_destination(self):
+        num_nodes = len(self.nodes)
+        final_destination = self.nodes[num_nodes-1]
+        return final_destination
 
     #provide next destination, note this requires you to have first deleted the initial destination to work correctly
     def provide_next_destination(self):
