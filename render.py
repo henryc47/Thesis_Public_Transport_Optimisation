@@ -46,11 +46,13 @@ class Display:
         #id of text above nodes at ends of activated edges, needs to be deleted when the edge is left
         self.text_id_line_end = -1 #default value, to indicate no such object
         self.text_id_line_start = -1 #default value, to indicate no such object
+        self.sim_frame_time = 1 #how many seconds between simulation view updates, reciprocal of frame-rate
 
     #set the various flags (and modes) used by the rendering engine to their default value
     def set_default_flags(self):
         self.first_render_flag = True #is this the first render of the visualisation for a network?
         self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
+        self.simulation_run_flag = False #has the simulation been run yet?
         self.secondary_control_mode = 'none' #which set of secondary controls (eg network_viz tools,simulation_viz_tools ) is being displayed
         self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
@@ -79,7 +81,7 @@ class Display:
         self.canvas_center_x = int(self.canvas_width/2)
         self.canvas_center_y = int(self.canvas_height/2)
         self.canvas = tk.Canvas(self.window, bg="white", height=self.canvas_height, width=self.canvas_width)
-        self.canvas.pack(side = tk.RIGHT)
+        self.canvas.pack(side = tk.RIGHT) 
         #bind canvas to scroll options
         self.canvas.bind("<MouseWheel>",self.zoom_canvas)
         self.canvas.bind("<ButtonPress-1>",self.pan_start)
@@ -138,13 +140,16 @@ class Display:
         #this button will run the basic simulation
         self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.run_simulation_click,width=20)
         self.run_simulation_button.pack()
+        #this button will play back the basic simulation
+        self.view_simulation_button = tk.Button(master=self.main_controls,text="VIEW SIMULATION",fg='black',bg='white',command=self.view_simulation_click,width=20)
+        self.view_simulation_button.pack()
         #this label will provide information to the user
         self.message_header = tk.Label(master=self.main_controls,text='MESSAGE',fg='black',bg='white',width=20)
         self.message_header.pack()
         self.message = tk.Label(master=self.main_controls,text='',fg='black',bg='white',width=20,height=5)
         self.message.pack()
 
-    #CLICK FUNCTIONS FOR MAIN CONTROLS
+    #CLICK FUNCTIONS FOR MAIN CONTROL
 
     #attempt to import the selected files
     def import_files_click(self):
@@ -242,13 +247,52 @@ class Display:
             self.log_print(simulation_start_message)
             self.message_update(simulation_start_message)
             time1 = time.time()
-            self.sim_network.basic_sim(60)
+            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names = self.sim_network.basic_sim(60) #run the simulation and store the data
+            self.simulation_run_flag = True #simulation has been run and relevant values have been stored
             time2 = time.time()
             simulation_finished_message = "simulation finished in \n " + "{:.3f}".format(time2-time1) + " seconds"
             self.log_print(simulation_finished_message)
             self.message_update(simulation_finished_message)
+            #create a label to display the time during simulation playback
+            #self.time_frame = tk.Frame(master=self.window)
+            #self.time_frame.pack(side=tk.TOP)
+            self.time_label = tk.Label(master=self.network_viz,text='TIME',fg='black',bg='white',width=10)
+            self.time_label.pack()
         else:
-            self.log_print('simulation not yet setup \n cannot run')
+            self.message_update('simulation not yet setup \n cannot run')
+            self.log_print('simulation not yet setup cannot run')
+    
+    def view_simulation_click(self):
+        if self.simulation_run_flag == False: #simulation needs to be run to be displayed
+            self.message_update('simulation not yet run \n run simulation to view results')
+            self.log_print('simulation not yet runs run simulation to view results')
+        elif self.simulation_run_flag == True:
+            #go through all time
+            self.num_sim_times = len(self.sim_times)
+            time_index = 0
+            #self.render_simulation_update(time_index)
+            self.render_simulation_update(time_index) 
+
+    #render a simulation update after a delay
+    def render_simulation_update(self,index):
+        start_render_time = time.time() #get the time at the start of renderings
+        end_render_time = start_render_time + self.sim_frame_time  #calculate what time we need to move to the next frame to maintain a steady frame-rate
+        #extract the data for the current timestep
+        sim_time = self.sim_times[index]
+        #update the time display
+        time_text = 'TIME ' + str(sim_time)
+        self.time_label.config(text=time_text)
+        #after rendering, wait till we reach the time set for the next visual update
+        remaining_frame_time = end_render_time-time.time()
+        index = index + 1 #index of the next batch of data
+        if index>=self.num_sim_times: #we have finished displaying the simulation
+            self.log_print("Simulation Display Finished")
+            self.message_update("Simulated Display Finished")
+            pass
+        elif index < self.num_sim_times:
+            #call the callback again once we have waited long enough
+            self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
+
 
     #switch logging levels (verbosity level)
     def verbose_button_click(self):
@@ -264,7 +308,6 @@ class Display:
         if self.simulation_setup_flag == True:#also update the logging level in the simulation if it exists
             self.log_print('SIMULATION LOG LEVEL UPDATED TO '+ str(self.verbose),2)
             self.sim_network.verbose = self.verbose
-
 
 
     #NETWORK VIZ TOOLS
