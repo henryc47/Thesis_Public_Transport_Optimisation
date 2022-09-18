@@ -38,6 +38,9 @@ class Display:
         self.default_edge_colour = 'black' #what colour will an edge be by default 
         self.path_edge_colour = 'magenta' #what colour will an edge which is part of the drawn path be
         self.path_edge_width = 3 #what width will an edge which is part of the drawn path be
+        #vehicle constants
+        self.default_vehicle_length = 3
+        self.default_vehicle_colour = 'blue'
         #node text constants
         self.default_node_text_colour = 'black'
         self.default_edge_text_colour = 'purple'
@@ -53,6 +56,7 @@ class Display:
         self.first_render_flag = True #is this the first render of the visualisation for a network?
         self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
         self.simulation_run_flag = False #has the simulation been run yet?
+        self.simulation_view_flag = False #is the simulation 
         self.secondary_control_mode = 'none' #which set of secondary controls (eg network_viz tools,simulation_viz_tools ) is being displayed
         self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
@@ -282,6 +286,11 @@ class Display:
         #update the time display
         time_text = 'TIME ' + str(sim_time)
         self.time_label.config(text=time_text)
+        #extract other information from the calculate vehicles
+        self.extract_current_vehicles_info(index) #extract info about the vehicles in the current simulation timesteps
+        self.calculate_vehicle_position() #calculate the position of the vehicles in the network
+        self.simulation_view_flag = True #simulation view has been setup
+        self.render_graph()  #now re-render the simulated world
         #after rendering, wait till we reach the time set for the next visual update
         remaining_frame_time = end_render_time-time.time()
         index = index + 1 #index of the next batch of data
@@ -293,6 +302,11 @@ class Display:
             #call the callback again once we have waited long enough
             self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
 
+    def extract_current_vehicles_info(self,index):
+        #extract the info for the current time (given by index)
+        self.sim_vehicles_current_names = self.sim_vehicle_names[index]
+        self.sim_vehicles_current_latitudes = self.sim_vehicle_latitudes[index]
+        self.sim_vehicles_current_longitudes = self.sim_vehicle_longitudes[index]
 
     #switch logging levels (verbosity level)
     def verbose_button_click(self):
@@ -577,7 +591,7 @@ class Display:
             elif self.edge_direction_mode == 'both':
                 self.edge_width_button.config(text="EDGE WIDTH \n COMBINED TRAFFIC")
 
-
+    #command for the edge colour button
     def edge_colour_click(self):
         #switch to the new mode
         if self.edge_colour_type == "constant":
@@ -595,6 +609,7 @@ class Display:
         #rerender the nodes to be of the correct size
         self.update_edges()
 
+    #function to update the text of the edge colour button
     def edge_colour_button_text_update(self):
         if self.edge_colour_type == "constant":
             self.edge_colour_button.config(text="CONSTANT EDGE COLOUR")
@@ -968,7 +983,6 @@ class Display:
         self.nodes_x_original = self.nodes_x
         self.nodes_y_original = self.nodes_y
 
-
     #calculate the midpoint of edges, used for plotting overlay text on edges
     #this needs to be done after node positions are calculated
     def calculate_edges_midpoints(self):
@@ -991,7 +1005,33 @@ class Display:
         self.edges_midpoint_x_original = self.edges_midpoint_x
         self.edges_midpoint_y_original = self.edges_midpoint_y
 
+    #calculate te position of vehicles
+    def calculate_vehicle_position(self):
+        #as vehicle quantities change from timestep to timestep, need to delete old vehicles first
+        self.derender_vehicles()    
+        num_vehicles = len(self.sim_vehicles_current_names)
+        self.sim_vehicles_current_x = []
+        self.sim_vehicles_current_y = []
+        self.sim_vehicles_current_length = [self.default_vehicle_length]*num_vehicles
+        self.sim_vehicles_current_colour = [self.default_vehicle_colour]*num_vehicles
+        self.vehicle_canvas_ids = ['blank']*num_vehicles #canvas ids for the nodes themsleves
+        for i in range(num_vehicles):
+            x,y = self.convert_lat_long_to_x_y(self.sim_vehicles_current_latitudes[i],self.sim_vehicles_current_longitudes[i])
+            self.sim_vehicles_current_x.append(x)
+            self.sim_vehicles_current_y.append(y)
+        self.sim_vehicles_current_x_original = self.sim_vehicles_current_x
+        self.sim_vehicles_current_y_original = self.sim_vehicles_current_y
+
+
     #FUNCTIONS PERFORMING ACTUAL RENDERING
+    def derender_vehicles(self):
+        #delete all existing vehicles
+        if self.simulation_view_flag==True:
+            num_vehicles_old = len(self.vehicle_canvas_ids)
+            for i in range(num_vehicles_old):
+                if self.vehicle_canvas_ids[i]!='blank':
+                        #delete the old oval object if one exists
+                        self.canvas.delete(self.vehicle_canvas_ids[i])
 
     #derender edge text created by hovering
     def derender_hover_edge_text(self):
@@ -1051,10 +1091,31 @@ class Display:
             self.canvas.tag_bind(id,'<Button-2>',self.node_right_click) #depending on gui_mode, information about the nodes relationship to other nodes will be displayed
             self.node_canvas_ids[i] = id #store the id so we can delete the object later
 
+    #draw the vehicle objects on the canvas
+    def render_vehicles(self):
+        num_vehicles = len(self.sim_vehicles_current_names)
+        #loop through all the current vehicles
+        for i in range(num_vehicles):
+            #extract data
+            x = self.sim_vehicles_current_x[i]
+            y = self.sim_vehicles_current_y[i]
+            length = self.sim_vehicles_current_length[i]
+            colour = self.sim_vehicles_current_colour[i]
+            #delete all old vehicle objects
+            if self.vehicle_canvas_ids[i]!='blank':
+                #delete the old rectangle object if one exists
+                self.canvas.delete(self.vehicle_canvas_ids[i])
+            id = self.canvas.create_rectangle(x-length,y-length,x+length,y+length,fill=colour)
+            #add code to display info about the vehicle when we hover over it
+            self.vehicle_canvas_ids[i] = id #store the id so we can delete the object later
+
     #combination of render nodes and render edges, in correct order to prevent edges spawning over nodes
     def render_graph(self):
         self.render_edges()
         self.render_nodes()
+        if self.simulation_view_flag == True:
+            self.render_vehicles() #render vehicles if we are in simulation view mode
+
 
     #stop displaying all the nodes and edges
     def erase_network_graph(self):
@@ -1163,6 +1224,7 @@ class Display:
         #update the graph
         self.recalculate_nodes_position(zoom_delta,mouse_x,mouse_y)
         self.recalculate_edge_midpoints(zoom_delta,mouse_x,mouse_y)
+        self.recalculate_vehicle_position(zoom_delta,mouse_x,mouse_y)
         self.render_graph()
         self.node_names_update() #update the rendering of node names
         #update text overlays if simulation has been setup
@@ -1170,8 +1232,6 @@ class Display:
             self.update_text_same_node() 
             self.generate_edge_overlay_text()
         
-        
-
     #recalculate all node positions in response to the zoom action
     def recalculate_nodes_position(self,zoom_delta,mouse_x,mouse_y):
         num_nodes = len(self.nodes_x)
@@ -1181,7 +1241,7 @@ class Display:
             self.nodes_x[i] = new_x
             self.nodes_y[i] = new_y
     
-    #recalculate the midpoint of all edges
+    #recalculate the midpoint of all edges in response to zooming
     def recalculate_edge_midpoints(self,zoom_delta,mouse_x,mouse_y):
         num_edges = len(self.edges_midpoint_x)
         #recalculate the position of all edge midpoints
@@ -1189,6 +1249,15 @@ class Display:
             new_x,new_y = self.recalculate_zoom_position(self.edges_midpoint_x[i],self.edges_midpoint_y[i],zoom_delta,mouse_x,mouse_y)
             self.edges_midpoint_x[i] = new_x
             self.edges_midpoint_y[i] = new_y
+
+    #recalculate the position of all vehicles in response to zooming
+    def recalculate_vehicle_position(self,zoom_delta,mouse_x,mouse_y):
+        num_vehicles = len(self.sim_vehicles_current_names)
+        #recalculate the position of all vehicles
+        for i in range(num_vehicles):
+            new_x,new_y = self.recalculate_zoom_position(self.sim_vehicles_current_x[i],self.sim_vehicles_current_y[i],zoom_delta,mouse_x,mouse_y)
+            self.sim_vehicles_current_x[i] = new_x
+            self.sim_vehicles_current_y[i] = new_y
 
     #recalculate the position of an object to be correct under the new zoom regime
     def recalculate_zoom_position(self,x,y,zoom_delta,mouse_x,mouse_y):

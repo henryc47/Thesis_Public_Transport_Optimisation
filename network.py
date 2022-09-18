@@ -226,32 +226,37 @@ class Network:
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
 
-        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.vehicle_names #return relevant data from the simulation to the calling code
+        #del self.vehicle_names[0] # dealing with Whacko47
+        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names #return relevant data from the simulation to the calling code
         
     #class to initialise class variables to store data about the vehicles as lists of lists
     def vehicle_logging_init(self):
         self.vehicle_latitudes = []
         self.vehicle_longitudes = []
-        self.vehicle_names = []
-
+        #self.vehicle_names = ['placeholder'] # dealing with Whacko47
+        self.store_vehicle_names = []
+        self.foo = 0
 
 
     #get relevant data about all vehicles in the network at the present time and store them in lists
     def get_vehicle_data_at_time(self):
-        vehicle_latitudes = []
-        vehicle_longitudes = []
-        vehicle_names = []
+        current_vehicle_latitudes = []
+        current_vehicle_longitudes = []
+        current_vehicle_names = []
         for vehicle in self.vehicles:
+            #print('single')
             #extract and store the data at the current time in a list
-            latitude,longitude = vehicle.get_coordinates()
-            vehicle_latitudes.append(latitude)
-            vehicle_longitudes.append(longitude)
-            vehicle_names.append(vehicle.name)
+            latitude,longitude = vehicle.get_coordinates() #get the latitude, longitude and direction of the vehicle
+            current_vehicle_latitudes.append(latitude)
+            current_vehicle_longitudes.append(longitude)
+            current_vehicle_names.append(vehicle.name)
+            #print(vehicle.name) #DEBUG
+            #print(longitude) #DEBUG
         #and store that list in a list containing data for all time
-        self.vehicle_latitudes.append(vehicle_latitudes)
-        self.vehicle_longitudes.append(vehicle_longitudes)
-        self.vehicle_names.append(vehicle_names)
-    
+        self.vehicle_latitudes.append(current_vehicle_latitudes)
+        self.vehicle_longitudes.append(current_vehicle_longitudes)
+
+        self.store_vehicle_names.append(current_vehicle_names)
         
     
     #create the schedule and functionality needed for scheduling
