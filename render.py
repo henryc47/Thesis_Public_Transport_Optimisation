@@ -152,8 +152,52 @@ class Display:
         self.message_header.pack()
         self.message = tk.Label(master=self.main_controls,text='',fg='black',bg='white',width=20,height=5)
         self.message.pack()
+        #this button will allow choosing different types of controls
+        self.control_mode_select_button = tk.Button(master=self.main_controls,text="CONTROL SELECT",fg='black',bg='white',command=self.control_mode_select_click,width=20)
+        self.control_mode_select_button.pack()
+        self.control_mode = 'none'
+
 
     #CLICK FUNCTIONS FOR MAIN CONTROL
+
+    #callback for button which allows us to switch between control modes for viewing network info vs controls for viewing simulation results
+    def control_mode_select_click(self):
+        #update control mode
+        if self.control_mode == 'none':
+            if self.simulation_setup_flag == True:
+                self.control_mode = 'network_viz'
+            elif self.simulation_run_flag == True:
+                self.control_mode = 'simulation_viz'
+            else:
+                self.log_print("SETUP AND RUN SIMULATION TO VIEW RESULTS")
+                self.message_update("SETUP AND RUN SIMULATION \n TO VIEW RESULTS")
+                self.control_mode = 'none'
+        elif self.control_mode == 'network_viz':
+            if self.simulation_run_flag == True:
+                self.control_mode = 'simulation_viz'
+            else:
+                self.log_print("SETUP AND RUN SIMULATION TO VIEW RESULTS")
+                self.message_update("RUN SIMULATION \n TO VIEW SIMULATION RESULTS")
+                self.control_mode = 'none'
+            
+        elif self.control_mode == 'simulation_viz':
+            self.control_mode = 'none'
+        
+        self.control_mode_update() #now that the control has been selected, perform the tasks associated with updating the control mode
+
+    #update the displayed controls so that we can switch between viewing different types of info
+    def control_mode_update(self):
+        if self.control_mode == 'none':
+            self.control_mode_select_button.config(text='CONTROL SELECT')
+            #no controls will be displayed
+        elif self.control_mode == 'network_viz':
+            self.control_mode_select_button.config(text='NETWORK VIEW CONTROLS')
+            #display controls for viewing unsimulated aspects of the network
+        elif self.control_mode == 'simulation_viz':
+            #display controls for viewing simulation results
+            self.control_mode_select_button.config(text='SIMULATION VIEW CONTROLS')
+
+    
 
     #attempt to import the selected files
     def import_files_click(self):
