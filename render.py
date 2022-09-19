@@ -101,7 +101,7 @@ class Display:
     def setup_main_controls(self):
         #create the control panel
         self.main_controls = tk.Frame(master=self.window)
-        self.main_controls.pack(side = tk.LEFT)
+        self.main_controls.pack(side = tk.LEFT,anchor=tk.N)
         #default file paths
         default_nodes = 'nodes_basic.csv'
         default_edges = 'edges_basic.csv'
