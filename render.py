@@ -57,10 +57,12 @@ class Display:
         self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
         self.simulation_run_flag = False #has the simulation been run yet?
         self.simulation_view_flag = False #is the simulation currently being viewed
+        self.simulation_past_vehicles_flag = False #are old vehicles from previous simulations still displayed
         self.secondary_control_mode = 'none' #which set of secondary controls (eg network_viz tools,simulation_viz_tools ) is being displayed
         self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
+
 
     #setup the window object, in which all of our GUI will be contained
     def setup_window(self): 
@@ -319,13 +321,21 @@ class Display:
     def view_simulation_click(self):
         if self.simulation_run_flag == False: #simulation needs to be run to be displayed
             self.message_update('simulation not yet run \n run simulation to view results')
-            self.log_print('simulation not yet runs run simulation to view results')
+            self.log_print('simulation not yet run,  run simulation to view results')
         elif self.simulation_run_flag == True:
             #go through all time
-            self.num_sim_times = len(self.sim_times)
-            time_index = 0
-            #self.render_simulation_update(time_index)
-            self.render_simulation_update(time_index) 
+            if self.simulation_view_flag == True:
+                #continue the current simulation if it is already being viewed
+                self.message_update('simulation already \n being viewed')
+                self.log_print('simulation already being viewed')
+            else:
+                if self.simulation_past_vehicles_flag == True:
+                    #we need to delete any lingering past vehicles
+                    self.derender_vehicles(override=True)
+                self.num_sim_times = len(self.sim_times)
+                time_index = 0
+                #self.render_simulation_update(time_index)
+                self.render_simulation_update(time_index) 
 
     #render a simulation update after a delay
     def render_simulation_update(self,index):
@@ -347,7 +357,8 @@ class Display:
         if index>=self.num_sim_times: #we have finished displaying the simulation
             self.log_print("Simulation Display Finished")
             self.message_update("Simulated Display Finished")
-            pass
+            self.simulation_view_flag = False #simulation is no longer being run
+            self.simulation_past_vehicles_flag = True #past vehicles still exist that will need to be deleted if we replay the simulation
         elif index < self.num_sim_times:
             #call the callback again once we have waited long enough
             self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
@@ -1096,9 +1107,11 @@ class Display:
         self.sim_vehicles_current_y_original = self.sim_vehicles_current_y
 
     #FUNCTIONS PERFORMING ACTUAL RENDERING
-    def derender_vehicles(self):
+    #derender displayed vehicles
+    def derender_vehicles(self,override=False):
         #delete all existing vehicles
-        if self.simulation_view_flag==True:
+        #overide option allows the function to operate even simulation_view_flag is false
+        if self.simulation_view_flag==True or override==True:
             num_vehicles_old = len(self.vehicle_canvas_ids)
             for i in range(num_vehicles_old):
                 if self.vehicle_canvas_ids[i]!='blank':
@@ -1185,7 +1198,7 @@ class Display:
     def render_graph(self):
         self.render_edges()
         self.render_nodes()
-        if self.simulation_view_flag == True:
+        if self.simulation_run_flag == True:
             self.render_vehicles() #render vehicles if we are in simulation view mode
 
 
@@ -1296,7 +1309,7 @@ class Display:
         #update the graph
         self.recalculate_nodes_position(zoom_delta,mouse_x,mouse_y)
         self.recalculate_edge_midpoints(zoom_delta,mouse_x,mouse_y)
-        if self.simulation_view_flag == True:
+        if self.simulation_run_flag == True: #only recalculate vehicle position if vehicles exists
             self.recalculate_vehicle_position(zoom_delta,mouse_x,mouse_y)
         self.render_graph()
         self.node_names_update() #update the rendering of node names
