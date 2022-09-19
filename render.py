@@ -56,7 +56,7 @@ class Display:
         self.first_render_flag = True #is this the first render of the visualisation for a network?
         self.simulation_setup_flag = False #has the simulation setup (eg trip distribution) been done already?
         self.simulation_run_flag = False #has the simulation been run yet?
-        self.simulation_view_flag = False #is the simulation 
+        self.simulation_view_flag = False #is the simulation currently being viewed
         self.secondary_control_mode = 'none' #which set of secondary controls (eg network_viz tools,simulation_viz_tools ) is being displayed
         self.last_node_left_click_index = -1 #index of last node left-clicked, -1 indicates that no nodes have been clicked yet
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
@@ -188,16 +188,20 @@ class Display:
     #update the displayed controls so that we can switch between viewing different types of info
     def control_mode_update(self):
         if self.control_mode == 'none':
-            self.control_mode_select_button.config(text='CONTROL SELECT')
             #no controls will be displayed
+            self.control_mode_select_button.config(text='CONTROL SELECT')
+            self.clear_network_viz_tools()
+            self.clear_simulation_viz_tools()
         elif self.control_mode == 'network_viz':
-            self.control_mode_select_button.config(text='NETWORK VIEW CONTROLS')
             #display controls for viewing unsimulated aspects of the network
+            self.control_mode_select_button.config(text='NETWORK VIEW CONTROLS')
+            self.clear_simulation_viz_tools()
+            self.setup_network_viz_tools()   
         elif self.control_mode == 'simulation_viz':
             #display controls for viewing simulation results
             self.control_mode_select_button.config(text='SIMULATION VIEW CONTROLS')
-
-    
+            self.clear_network_viz_tools()
+            self.setup_simulation_viz_tools()
 
     #attempt to import the selected files
     def import_files_click(self):
@@ -280,12 +284,12 @@ class Display:
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
         self.message_update(simulation_setup_message)
-        if self.simulation_setup_flag:   #only setup network visulisation tools if they have not already been created
-            #if they have been recreated we need to destroy the old tools
-            self.clear_network_viz_tools()
-            self.setup_network_viz_tools()
-        else:
-            self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
+        #if self.simulation_setup_flag:   #only setup network visulisation tools if they have not already been created
+        #    #if they have been recreated we need to destroy the old tools
+        #    self.clear_network_viz_tools()
+        #    self.setup_network_viz_tools()
+        #else:
+        #    self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
         
         self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
 
@@ -304,8 +308,6 @@ class Display:
             #create a label to display the time during simulation playback
             #self.time_frame = tk.Frame(master=self.window)
             #self.time_frame.pack(side=tk.TOP)
-            self.time_label = tk.Label(master=self.network_viz,text='TIME',fg='black',bg='white',width=10)
-            self.time_label.pack()
         else:
             self.message_update('simulation not yet setup \n cannot run')
             self.log_print('simulation not yet setup cannot run')
@@ -421,11 +423,25 @@ class Display:
         self.edge_colour_button = tk.Button(master=self.network_viz,text="CONSTANT EDGE COLOUR",fg='black',bg='white',command=self.edge_colour_click,width=20,height=2)
         self.edge_colour_button.pack()
         self.edge_colour_type = "constant" #by default, edges will be a constant size
+        self.secondary_control_mode = 'network_viz' #network viz mode is being displayed
+
+    def setup_simulation_viz_tools(self):
+        #create the overall frame
+        self.simulation_viz = tk.Frame(master=self.main_controls)
+        self.simulation_viz.pack(side = tk.TOP)
+        self.time_label = tk.Label(master=self.simulation_viz,text='TIME',fg='black',bg='white',width=20)
+        self.time_label.pack()
+        self.secondary_control_mode = 'simulation_viz' #network viz mode is being displayed
 
     #delete the network_viz tool controls 
     def clear_network_viz_tools(self):
-        self.network_viz.destroy()
-        self.simulation_setup_flag = False #record that the simulation has not been setup 
+        if self.secondary_control_mode == 'network_viz':
+            self.network_viz.destroy() #destroy the simulation viz controls
+
+    #delete the network_viz tool controls 
+    def clear_simulation_viz_tools(self):
+        if self.secondary_control_mode == 'simulation_viz':
+            self.simulation_viz.destroy() #destroy the simulation viz controls
 
 
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
