@@ -1017,11 +1017,11 @@ class Display:
         self.vehicle_canvas_ids = ['blank']*num_vehicles #canvas ids for the nodes themsleves
         for i in range(num_vehicles):
             x,y = self.convert_lat_long_to_x_y(self.sim_vehicles_current_latitudes[i],self.sim_vehicles_current_longitudes[i])
+            x,y = self.apply_accumlated_zoom(x,y)#apply accumulated zoom to new vehicle objects
             self.sim_vehicles_current_x.append(x)
             self.sim_vehicles_current_y.append(y)
         self.sim_vehicles_current_x_original = self.sim_vehicles_current_x
         self.sim_vehicles_current_y_original = self.sim_vehicles_current_y
-
 
     #FUNCTIONS PERFORMING ACTUAL RENDERING
     def derender_vehicles(self):
@@ -1214,24 +1214,31 @@ class Display:
         mouse_y = self.canvas.canvasy(event.y)
         #print('mouse x ',mouse_x,' mouse y ',mouse_y)
         zoom_delta = 0.01*event.delta #zoom is in proportion to scroll wheel direction and magnitude
-        #self.current_scale = self.current_scale + zoom_delta #update the scale
-        #self.zoom_offset_x = self.zoom_offset_x - mouse_x*zoom_delta#calculate the new offset for x
-        #self.zoom_offset_y = self.zoom_offset_y - mouse_y*zoom_delta#calculate the new offset for y
+        self.current_zoom = self.current_zoom*(1+zoom_delta) #update the accumulated zoom level
+        self.current_zoom_offset_x = self.current_zoom_offset_x*(1+zoom_delta) - mouse_x*zoom_delta#calculate the new offset for x
+        self.current_zoom_offset_y = self.current_zoom_offset_y*(1+zoom_delta) - mouse_y*zoom_delta#calculate the new offset for y
         self.apply_correct_zoom(zoom_delta,mouse_x,mouse_y) #perform the zoom on all objects in an image
     
-    #create new objects in the correctly zoomed position
+    #recreate existing objects in the correctly zoomed position
     def apply_correct_zoom(self,zoom_delta,mouse_x,mouse_y):
         #update the graph
         self.recalculate_nodes_position(zoom_delta,mouse_x,mouse_y)
         self.recalculate_edge_midpoints(zoom_delta,mouse_x,mouse_y)
-        self.recalculate_vehicle_position(zoom_delta,mouse_x,mouse_y)
+        if self.simulation_view_flag == True:
+            self.recalculate_vehicle_position(zoom_delta,mouse_x,mouse_y)
         self.render_graph()
         self.node_names_update() #update the rendering of node names
         #update text overlays if simulation has been setup
         if self.simulation_setup_flag:
             self.update_text_same_node() 
             self.generate_edge_overlay_text()
-        
+
+        #apply the accumulated zoom to newly created objects
+    def apply_accumlated_zoom(self,x,y):
+        new_x = (x*self.current_zoom)+(self.current_zoom_offset_x)
+        new_y = (y*self.current_zoom)+(self.current_zoom_offset_y)
+        return new_x,new_y 
+
     #recalculate all node positions in response to the zoom action
     def recalculate_nodes_position(self,zoom_delta,mouse_x,mouse_y):
         num_nodes = len(self.nodes_x)
