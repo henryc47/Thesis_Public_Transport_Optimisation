@@ -108,7 +108,7 @@ class Display:
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
         self.verbose_button = tk.Button(master=self.main_controls,fg='black',bg='white',command=self.verbose_button_click,width=20)
-        self.verbose_button.pack()
+        self.verbose_button.pack(side = tk.TOP)
         self.verbose_button_click() #display initial message
         #label and input to import node files
         self.node_file_path_label = tk.Label(master=self.main_controls,text='NODE FILE PATH',fg='black',bg='white',width=20)
@@ -156,6 +156,10 @@ class Display:
         self.control_mode_select_button = tk.Button(master=self.main_controls,text="CONTROL SELECT",fg='black',bg='white',command=self.control_mode_select_click,width=20)
         self.control_mode_select_button.pack()
         self.control_mode = 'none'
+        #create the underlying visulisation controls
+        self.setup_network_viz_tools()
+        self.setup_simulation_viz_tools()
+        #they are created hidden, and will be unhidden later
 
 
     #CLICK FUNCTIONS FOR MAIN CONTROL
@@ -196,12 +200,12 @@ class Display:
             #display controls for viewing unsimulated aspects of the network
             self.control_mode_select_button.config(text='NETWORK VIEW CONTROLS')
             self.clear_simulation_viz_tools()
-            self.setup_network_viz_tools()   
+            self.view_network_viz_tools()   
         elif self.control_mode == 'simulation_viz':
             #display controls for viewing simulation results
             self.control_mode_select_button.config(text='SIMULATION VIEW CONTROLS')
             self.clear_network_viz_tools()
-            self.setup_simulation_viz_tools()
+            self.view_simulation_viz_tools()
 
     #attempt to import the selected files
     def import_files_click(self):
@@ -378,7 +382,7 @@ class Display:
     def setup_network_viz_tools(self):
         #create the overall frame
         self.network_viz = tk.Frame(master=self.main_controls)
-        self.network_viz.pack(side = tk.TOP)
+        #self.network_viz.pack(side = tk.TOP)
         #A label for the too/from select button
         self.display_mode_label = tk.Label(master=self.network_viz,text='DIRECTION SELECT',fg='black',bg='white',width=20)
         self.display_mode_label.pack()
@@ -428,21 +432,29 @@ class Display:
     def setup_simulation_viz_tools(self):
         #create the overall frame
         self.simulation_viz = tk.Frame(master=self.main_controls)
-        self.simulation_viz.pack(side = tk.TOP)
+        #self.simulation_viz.pack(side = tk.TOP)
         self.time_label = tk.Label(master=self.simulation_viz,text='TIME',fg='black',bg='white',width=20)
         self.time_label.pack()
-        self.secondary_control_mode = 'simulation_viz' #network viz mode is being displayed
+        self.secondary_control_mode = 'simulation_viz' #simulation viz mode is being displayed
 
-    #delete the network_viz tool controls 
+    #hide the network_viz tool controls 
     def clear_network_viz_tools(self):
         if self.secondary_control_mode == 'network_viz':
-            self.network_viz.destroy() #destroy the simulation viz controls
+            self.network_viz.pack_forget() #hide the network viz controls
 
-    #delete the network_viz tool controls 
+    #redisplay the network_viz tools
+    def view_network_viz_tools(self):
+        self.network_viz.pack(side = tk.TOP)
+        self.secondary_control_mode = 'network_viz'
+
+    #hide the network_viz tool controls 
     def clear_simulation_viz_tools(self):
         if self.secondary_control_mode == 'simulation_viz':
-            self.simulation_viz.destroy() #destroy the simulation viz controls
+            self.simulation_viz.pack_forget() #hide the simulation viz controls
 
+    def view_simulation_viz_tools(self):
+        self.simulation_viz.pack(side = tk.TOP)
+        self.secondary_control_mode = 'simulation_viz'
 
     #CLICK FUNCTIONS FOR NETWORK VIZ TOOLS
     #command for button to switch between displaying and not displaying node names
