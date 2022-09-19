@@ -760,8 +760,8 @@ class Display:
     #set edge width based on data about the edge (which data depends on mode)
     def set_edge_widths(self):
         num_edges = len(self.edge_end_indices)
-        if self.edge_width_type =="constant":
-            self.edge_width = [self.default_edge_width]*num_edges
+        if self.edge_width_type == "constant":
+            self.edge_widths = [self.default_edge_width]*num_edges
         else:
             (forward_edge_data,reverse_edge_data) = self.extract_data_edges(self.edge_width_type)
             if self.edge_direction_mode == 'forward':
