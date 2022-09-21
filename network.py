@@ -8,6 +8,8 @@ import time as time #for benchmarking
 import schedule as schedule
 import vehicle as vehicle
 import copy as copy #for shallow-copying schedules
+import random as rand
+import agent as a
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -41,7 +43,7 @@ class Node:
         self.edge_destinations = []#and the destination of each node
         self.edge_times = []#matching list of travel time of each respective edge
         (self.latitude,self.longitude) = extract_coordinates(coordinates)
-
+        self.agents = [] #list of all agents at this stations
     
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -53,8 +55,6 @@ class Node:
         else:
             print('edge ', edge.name, ' between ', edge.start_node, ' and ', edge.end_node, ' does not start at node ', self.name)
             return False #Return false to indicate edge has not been associated with the node
-
-
 
     #return the time taken to travel along a particular edge
     #for this function to work correctly, edge names must be unique
@@ -87,7 +87,14 @@ class Node:
             print('node ', destination_name, ' not in list of nodes reachable from this node')
             return False #False to indicate search operation unsuccessful
     
-    
+    #add a agent to the station
+    def add_agent(self,agent):
+        self.agents.append(agent)
+
+    #count the number of agents at the station
+    def count_agents(self):
+        return len(self.agents)
+
     def test_node(self):
         print('from node ',self.name, ' edges are')
         for i in range(len(self.edge_names)):
@@ -157,15 +164,16 @@ class Network:
             print('time to calculate traffic along each edge ',time2-time1, ' seconds')
 
         self.schedule_csv = schedule_csv
-        
         #setup for vehicle simulations
         self.num_vehicles_started_here = np.zeros(num_nodes) #store the number of vehicles on the network which started from a particular node
         self.vehicles = [] #container to store vehicles in
-        self.vehicle_names = [] #container to store vehicle names in, note this is just schedule name followed by initial departure time
+        self.vehicle_names = [] #container to store vehicle names in, note this is just schedule name followed by initial departure time 
         #set the simulation timestamp to be 0 (start of simulation)
         self.time = 0
-
-
+        #containers to store agents (passengers) and agent ids
+        self.agents = []
+        self.agent_ids = []
+        self.agent_id_counter = 0 #id of the next agent to be generated
 
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
@@ -194,9 +202,6 @@ class Network:
                     print('a vehicle ', vehicle.name, ' has reached the end of its path ', vehicle.next_destination.name ," at time ", self.time)
                 del self.vehicles[count] #remove the vehicle when it has reached it's destination
 
-
-
-
     #create vehicles at nodes as needed by the schedule
     def assign_vehicles_schedule(self):
         #run through the all the schedules in the dispatch list
@@ -206,12 +211,47 @@ class Network:
                 #a vehicle is to be dispatched, so create a vehicle here
                 self.create_vehicle(self.schedules[i])
                 self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
+
+    #create new passengers at stations, going between each node pair
+    def create_all_passengers(self):
+        num_nodes = len(self.node_names)
+        for i in range(num_nodes): #go through all the nodes we are starting from
+            start_node = self.nodes[i] #extract a reference to that node
+            for j in range(num_nodes): #go through all the nodes we are ending up at
+                end_node = self.nodes[j] #extract a reference to that node
+                num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
+                num_passengers_per_min = num_passengers_pair/60 #we create passengers every minute, but statistics are per hour
+                self.create_passengers_pair(start_node,end_node,num_passengers_per_min)
+
+    #create the passengers for a specific pair of nodes and edges
+    def create_passengers_pair(self,start_node,end_node,num_passengers_per_min):
+        int_num_passengers = int(num_passengers_per_min) #rounded-down number of passengers to create
+        chance_additional_passenger = num_passengers_per_min-int_num_passengers #chance of an additional passenger being created from the remainder
+        num_passengers = int_num_passengers + random_true(chance_additional_passenger) #get the final number of passengers to be created
+        #now create the actual passengers at the stations
+        for i in range(num_passengers):
+            self.create_passenger(start_node,end_node)
+
+    #create a single passenger
+    def create_passenger(self,start_node,end_node):
+        #create the passenger
+        self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
+        self.agents.append(a.Agent(start_node,end_node,self.agent_id_counter)) #create the new passengers and add to the list
+        self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
+        #assign the passenger to their starting station
+        start_node.add_agent(start_node)
+
     #update time by one unit        
     def update_time(self):
         if self.verbose>=1:
             print('time ', self.time)
-        self.assign_vehicles_schedule() #create new vehicles at scheduled locations
+        
         self.move_vehicles() #move vehicles around the network
+        #self.alight_passengers() #passengers alight from vehicles
+        #self.remove_arrived_vehicles()  #remove vehicles which have completed their path
+        self.assign_vehicles_schedule() #create new vehicles at scheduled locations
+        self.create_all_passengers() #create new passengers
+        #self.board_passengers() #passengers board vehicles 
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time
@@ -220,14 +260,16 @@ class Network:
         self.time = 0
         self.times = []
         self.vehicle_logging_init() #initialise vehicle logging
+        self.node_logging_init() #initialise node logging
         #create lists to store latitudes,longitudes and names of vehicles over time as lists of lists 
         while self.time<stop_time:#till we reach the specified time
             self.update_time() #run the simulation
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
+            self.get_node_data_at_time() #extract node data at the current time
 
         #del self.vehicle_names[0] # dealing with Whacko47
-        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names #return relevant data from the simulation to the calling code
+        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers #return relevant data from the simulation to the calling code
         
     #class to initialise class variables to store data about the vehicles as lists of lists
     def vehicle_logging_init(self):
@@ -235,14 +277,18 @@ class Network:
         self.vehicle_longitudes = []
         #self.vehicle_names = ['placeholder'] # dealing with Whacko47
         self.store_vehicle_names = []
-        self.foo = 0
+        self.vehicle_passengers = []
 
+    #class to initalise class variables to store data about nodes as lists of lists
+    def node_logging_init(self):
+        self.node_passengers = []
 
     #get relevant data about all vehicles in the network at the present time and store them in lists
     def get_vehicle_data_at_time(self):
         current_vehicle_latitudes = []
         current_vehicle_longitudes = []
         current_vehicle_names = []
+        current_vehicle_passenger_counts = []
         for vehicle in self.vehicles:
             #print('single')
             #extract and store the data at the current time in a list
@@ -250,15 +296,22 @@ class Network:
             current_vehicle_latitudes.append(latitude)
             current_vehicle_longitudes.append(longitude)
             current_vehicle_names.append(vehicle.name)
+            current_vehicle_passenger_counts.append(vehicle.count_agents())
             #print(vehicle.name) #DEBUG
             #print(longitude) #DEBUG
         #and store that list in a list containing data for all time
         self.vehicle_latitudes.append(current_vehicle_latitudes)
         self.vehicle_longitudes.append(current_vehicle_longitudes)
-
         self.store_vehicle_names.append(current_vehicle_names)
-        
-    
+        self.vehicle_passengers.append(current_vehicle_passenger_counts)
+
+    #get relevant data about all nodes in the network at the present time and store them in lists
+    def get_node_data_at_time(self):
+        current_node_passenger_counts = []
+        for node in self.nodes:
+            current_node_passenger_counts.append(node.count_agents())
+        self.node_passengers.append(current_node_passenger_counts)
+                   
     #create the schedule and functionality needed for scheduling
     def create_schedules(self,schedule_csv):
         self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
@@ -671,4 +724,11 @@ def extract_schedule_list_txt(schedule_string):
     nodes.append("".join(new_node))
     return nodes
 
-
+#return true if random generated number is less than provided chance 
+#input chance is equal to the chance of the output being true
+def random_true(chance):
+    random_number = rand.random() #random number between 0 and 1
+    if random_number<=chance:
+        return True
+    else:
+        return False

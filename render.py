@@ -305,19 +305,26 @@ class Display:
             self.log_print(simulation_start_message)
             self.message_update(simulation_start_message)
             time1 = time.time()
-            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names = self.sim_network.basic_sim(60) #run the simulation and store the data
+            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(60) #run the simulation and store the data
+            self.setup_default_sim_current_values() #set default values for information about specific timesteps
             self.simulation_run_flag = True #simulation has been run and relevant values have been stored
             time2 = time.time()
             simulation_finished_message = "simulation finished in \n " + "{:.3f}".format(time2-time1) + " seconds"
             self.log_print(simulation_finished_message)
             self.message_update(simulation_finished_message)
-            #create a label to display the time during simulation playback
-            #self.time_frame = tk.Frame(master=self.window)
-            #self.time_frame.pack(side=tk.TOP)
         else:
             self.message_update('simulation not yet setup \n cannot run')
             self.log_print('simulation not yet setup cannot run')
     
+    #set default values for current sim variables, to avoid errors if we try and render them outside of a timestep
+    def setup_default_sim_current_values(self):
+        num_nodes = len(self.node_names)
+        self.sim_node_current_passengers = np.zeros(num_nodes)
+        self.sim_vehicles_current_names = []
+        self.sim_vehicles_current_latitudes = []
+        self.sim_vehicles_current_longitudes = []
+        self.sim_vehicles_current_current_passengers = []
+
     def view_simulation_click(self):
         if self.simulation_run_flag == False: #simulation needs to be run to be displayed
             self.message_update('simulation not yet run \n run simulation to view results')
@@ -348,9 +355,12 @@ class Display:
         self.time_label.config(text=time_text)
         #extract other information from the calculate vehicles
         self.extract_current_vehicles_info(index) #extract info about the vehicles in the current simulation timesteps
+        self.extract_current_nodes_info(index) #extract info about the nodes in the current simulation timesteps
         self.calculate_vehicle_position() #calculate the position of the vehicles in the network
         self.simulation_view_flag = True #simulation view has been setup
         self.render_graph()  #now re-render the simulated world
+        self.update_text_same_node() 
+        self.generate_edge_overlay_text()
         #after rendering, wait till we reach the time set for the next visual update
         remaining_frame_time = end_render_time-time.time()
         index = index + 1 #index of the next batch of data
@@ -368,6 +378,11 @@ class Display:
         self.sim_vehicles_current_names = self.sim_vehicle_names[index]
         self.sim_vehicles_current_latitudes = self.sim_vehicle_latitudes[index]
         self.sim_vehicles_current_longitudes = self.sim_vehicle_longitudes[index]
+        self.sim_vehicles_current_passengers = self.sim_vehicle_passengers[index]
+
+    def extract_current_nodes_info(self,index):
+        #extract the info for the current time (given by index)
+        self.sim_node_current_passengers = self.sim_node_passengers[index]
 
     #switch logging levels (verbosity level)
     def verbose_button_click(self):
@@ -491,42 +506,59 @@ class Display:
     #command for button to switch whether numeric information (eg num passengers) will be displayed next to all relevant nodes
     def nodes_numeric_overlay_click(self):
         if self.nodes_numeric_overlay_mode == 'no_info': #switch to node total mode, where the total traffic too/from each node is displayed
-            self.nodes_numeric_overlay_mode = 'node_total'
-            if self.from_node: 
-                self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")
-            else:
-                self.nodes_numeric_overlay_button.config(text="NUMERIC OVERLAY TOTAL \n TRAFFIC FROM NODES")    
+            self.nodes_numeric_overlay_mode = 'node_total'  
 
         elif self.nodes_numeric_overlay_mode == 'node_total':#switch to node relative mode, where the traffic too/from the key node is displayed
             self.nodes_numeric_overlay_mode = 'node_relative'
-            if self.from_node:  
-                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n FROM CLICKED NODE")
-            else:
-                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY TRAFFIC \n TOO CLICKED NODE")
 
         elif self.nodes_numeric_overlay_mode == 'node_relative':#switch to distance mode, where the distance too/from the key node is displayed
             self.nodes_numeric_overlay_mode = 'node_distance'
-            if self.from_node:
-                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n FROM CLICKED NODE")
-            else:
-                self.nodes_numeric_overlay_button.config(text="NODE OVERLAY DISTANCE \n TOO CLICKED NODE")
 
+        elif self.nodes_numeric_overlay_mode == 'node_distance' and self.simulation_run_flag==True:
+            #if simulation has been run, switch to a mode where we display the actual number of waiting passengers (at each simulation timestep)
+            self.nodes_numeric_overlay_mode = 'waiting_passengers'
+        
         else: #switch back to the default mode of no numeric overlay
             self.nodes_numeric_overlay_mode = 'no_info'
-            self.nodes_numeric_overlay_button.config(text="NO NODE OVERLAY")
+
+        self.nodes_numeric_overlay_button_text_update() #update the text on the button
+        self.update_text_same_node() #update the numeric overlay
+
+    #update the text in the nodes numeric overlay button
+    def nodes_numeric_overlay_button_text_update(self):
+        text = "INVALID MODE FOR \n NODES NUMERIC OVERLAY"
+        if self.nodes_numeric_overlay_mode == 'no_info':
+            text = "NO NODE OVERLAY"
+        elif self.nodes_numeric_overlay_mode == 'node_total':
+            if self.from_node: 
+               text="NODES OVERLAY \n TOTAL TRAFFIC FROM NODES"
+            else:
+                text="NODES OVERLAY \n TOTAL TRAFFIC TOO NODES"
+        elif self.nodes_numeric_overlay_mode == 'node_relative':
+            if self.from_node: 
+               text="NODES OVERLAY TRAFFIC \n FROM CLICKED NODE"
+            else:
+                text="NODES OVERLAY TRAFFIC \n TOO CLICKED NODE"
+        elif self.nodes_numeric_overlay_mode == 'node_distance':
+            if self.from_node: 
+               text="NODES OVERLAY DISTANCE \n FROM CLICKED NODE"
+            else:
+                text="NODES OVERLAY DISTANCE \n TOO CLICKED NODE"
         
-        self.update_text_same_node()
+        elif self.nodes_numeric_overlay_mode == 'waiting_passengers':
+            text = "NODE OVERLAY \n PASSENGERS AT NODE"
+        self.nodes_numeric_overlay_button.config(text=text)
 
     #command for button to switch whether edge statistics will be displayed forward/reverse
     def edge_direction_select_click(self):
         if self.edge_direction_mode == 'both':
-             self.edge_direction_button.config(text='FORWARD EDGE DIRECTION');
+             self.edge_direction_button.config(text='FORWARD EDGE DIRECTION')
              self.edge_direction_mode = 'forward'
         elif self.edge_direction_mode == 'forward':
-            self.edge_direction_button.config(text='REVERSE EDGE DIRECTION');
+            self.edge_direction_button.config(text='REVERSE EDGE DIRECTION')
             self.edge_direction_mode = 'reverse'
         elif self.edge_direction_mode == 'reverse':
-            self.edge_direction_button.config(text='BOTH EDGE DIRECTIONS');
+            self.edge_direction_button.config(text='BOTH EDGE DIRECTIONS')
             self.edge_direction_mode = 'both'
         
         self.edges_overlay_button_text_update()  #update the text on the button
@@ -725,6 +757,7 @@ class Display:
             self.update_text_same_node()
 
         #update the other buttons text
+        self.nodes_numeric_overlay_button_text_update()
         self.node_colour_button_text_update()
         self.node_size_button_text_update()
 
@@ -936,7 +969,10 @@ class Display:
     def update_text_same_node(self):
         if self.nodes_numeric_overlay_mode == 'node_total':
         #if we are overlaying based on total traffic too/from node, the key node does not matter, so we can display info without it
-            self.text_total_passengers_node() #replace with new info about total traffic too/from a node 
+            self.text_total_passengers_node() #replace with new info about total traffic too/from a node
+        elif self.nodes_numeric_overlay_mode == 'waiting_passengers':
+            self.text_waiting_passengers_node() #replace with new info about passengers waiting at a node  
+
         #otherwise don't update if no node-specific text was being displayed in the first place
         elif self.last_node_left_click_index == -1:
             self.erase_all_nodes_text('below') #erase all text already displayed
@@ -1396,6 +1432,10 @@ class Display:
 
         self.display_text_info_node(trips,where_mode='below',type_mode='float') #display the number of trips starting/ending at each node node
     
+    #display the number of passengers waiting at a node
+    def text_waiting_passengers_node(self):
+        self.display_text_info_node(self.sim_node_current_passengers,where_mode='below',type_mode='int') #display the number of waiting passengers at each node
+
     #display the journey time from the clicked node to other nodes as text above the node
     def text_journeys_node(self,key_node_index):
         if self.from_node:

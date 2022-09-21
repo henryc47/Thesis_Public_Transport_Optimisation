@@ -16,6 +16,8 @@ class Vehicle:
         check,self.previous_stop = self.schedule.provide_next_destination() #get the starting destination which will be stored as the previous stop
         check = self.schedule.remove_reached_destination() #remove starting destination from list of destinations
         self.final_destination = self.schedule.provide_final_destination() #get the final destination as well
+        self.at_final_destination = False #mark if a vehicle has reached it's final destination, and will be deleted next update
+        self.agents = [] #container to store agents in the vehicle
 
     #move the vehicle around the network according to its schedule
     def update(self):
@@ -58,7 +60,6 @@ class Vehicle:
         if self.state == 'at_stop':
             print('vehicle ',self.name,' stopped at ', self.previous_stop.name)
 
-
     def get_coordinates(self):
         if self.state == 'at_stop':
             #when at stop, vehicle position is the position of the stop (which is previous stop)
@@ -73,6 +74,14 @@ class Vehicle:
         
         return latitude,longitude
     
+    #store an agent in the vehicle
+    def add_agent(self,agent):
+        self.agents.append(agent)
+
+    #count the number of agents in the vehicle
+    def count_agents(self):
+        return len(self.agents)
+
 
 
 
