@@ -9,6 +9,7 @@ class Vehicle:
     #create the vehicle
     def __init__(self,schedule,start_time,name):
         self.schedule = copy.copy(schedule)
+        self.schedule_name = self.schedule.name
         self.name = name
         self.state = 'at_stop' #vehicle states are 'at_stop' and 'moving'
         self.schedule.offset_schedule_times(start_time)#adjust the schedule to reflect the time we started
@@ -18,6 +19,7 @@ class Vehicle:
         self.final_destination = self.schedule.provide_final_destination() #get the final destination as well
         self.at_final_destination = False #mark if a vehicle has reached it's final destination, and will be deleted next update
         self.agents = [] #container to store agents in the vehicle
+
 
     #move the vehicle around the network according to its schedule
     def update(self):

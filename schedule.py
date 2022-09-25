@@ -8,6 +8,7 @@ class Schedule:
     def __init__(self,name):
         self.name = name#starting node of the schedule, useful for assigning schedules to vehicles
         self.nodes = [] #list of destinations (reference to a node)
+        self.node_names = [] #list of node names
         self.edges = [] #list of edges to reach each destination from previous location (reference to an edge)
         self.schedule_times = [] #list of times when we will reach the nodes we are travelling toos
 
@@ -21,13 +22,15 @@ class Schedule:
         return copy_schedule
         
     #add the first destination to the schedule
-    def add_start_node(self,start_node):
+    def add_start_node(self,start_node,start_node_name):
         self.nodes.append(start_node)
+        self.node_names.append(start_node_name)
 
     #add a destination to the schedule
-    def add_destination(self,next_node,next_edge):
+    def add_destination(self,next_node,next_edge,next_node_name):
         self.nodes.append(next_node)
         self.edges.append(next_edge)
+        self.node_names.append(next_node_name)
 
     #provide final destination in the schedule
     def provide_final_destination(self):
@@ -61,7 +64,6 @@ class Schedule:
     def provide_name(self):
         return self.name
     
-    #this 
     def add_schedule_times(self,arrival_times):
         self.schedule_times = arrival_times #this is a numpy array
 
@@ -78,5 +80,24 @@ class Schedule:
                 print('NODE ', self.nodes[i].name, ' TIME ', self.schedule_times[i], ' EDGE ', self.edges[i-1].name) #note, print the edge to reach the displayed node
             else:
                 print('NODE ', self.nodes[i].name, ' TIME ', self.schedule_times[i]) #for starting node, there is no edge to reach the displayed node
-         
+
+    #find if a node name is in the schedule, and if so, return the nodes after and the times to reach them from the search node
+    #also return the time to reach the search node from the start of the schedule
+    def node_name_in_schedule(self,search_node_name):
+        nodes_after = []
+        node_times_after = []
+        search_node_time = 0
+        node_found = False
+        for i,node_name in enumerate(self.node_names):
+            if node_found == False:
+                if node_name == search_node_name:
+                    node_found = True
+                    search_node_time = self.schedule_times[i]
+            elif node_found == True:
+                #record the name and time to reach of nodes after the node names
+                nodes_after.append(self.nodes[i]) #add node to the list
+                node_times_after.append(self.schedule_times[i]-search_node_time)
+        
+        return node_found,search_node_time,nodes_after,node_times_after
+
 
