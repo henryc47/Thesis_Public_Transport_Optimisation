@@ -122,7 +122,7 @@ class Node:
             schedule_offset = self.schedule_offsets[i]
             schedule_gap = self.schedule_gaps[i]
             node_offset_time   = self.node_offset_time[i]
-            next_service_time = schedule_gap + node_offset_time #calculate the time of the first service along this route to reach the node
+            next_service_time = schedule_offset + node_offset_time #calculate the time of the first service along this route to reach the node
             while next_service_time<current_time: #which the next service time is in the future
                 next_service_time = next_service_time + schedule_gap
             #once we determined the next service time, calculate it relative to the current time and store it
@@ -133,6 +133,17 @@ class Node:
     #this is useful for operations at the current time
     def self_time_till_next_vehicles(self,current_time):
         self.next_service_times = self.time_till_next_vehicles(current_time)
+
+    #provide the next service
+    def provide_next_services(self,data_time=0,start=False):
+        if start==True:
+            #we are providing service info at the same time as we are creating a passenger, so use precalculated times
+            next_service_times = self.next_service_times
+        else:
+            #otherwise calculate the time 
+            next_service_times = self.time_till_next_vehicles(data_time)
+        #in either case, we must return the corresponding following nodes and their time to reach
+        return next_service_times,self.nodes_after,self.node_times_after,self.schedule_names
 
     def test_node(self):
         print('from node ',self.name, ' edges are')
@@ -270,13 +281,13 @@ class Network:
         #now create the actual passengers at the stations
         for i in range(num_passengers):
             self.create_passenger(start_node,end_node)
-            
+
 
     #create a single passenger
     def create_passenger(self,start_node,end_node):
         #create the passenger
         self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
-        self.agents.append(a.Agent(start_node,end_node,self.agent_id_counter)) #create the new passengers and add to the list
+        self.agents.append(a.Agent(start_node,end_node,self.agent_id_counter,self.time,self)) #create the new passengers and add to the list
         self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
         #assign the passenger to their starting station
         start_node.add_agent(start_node)

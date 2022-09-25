@@ -1,10 +1,110 @@
+import numpy as np
+import copy as copy
 #agent.py
 #stores the agent class and related functionality
 
 
 class Agent:
-    def __init__(self,start_node,destination_node,id):
-        self.start_node = start_node
+    def __init__(self,start_node,destination_node,id,start_time,network):
+        self.start_node = start_node 
         self.destination_node = destination_node
         self.id = id
+        self.start_time = start_time
+        self.network = network #reference to the network object
+        self.destination_path = [] #path of actions to the destination node
+        self.pathfind()
+
+    #calculate a path from the start to the destination
+    #store this path inside the agent
+    def pathfind(self):
+        #print('start ',self.start_node.name,' destination ',self.destination_node.name) #DEBUG
+        #get info about vehicles arriving at the starting node
+        start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.start_node.provide_next_services(start=True)
+        #get index of starting and ending nodes in the network structure
+        start_node_index = self.network.get_node_index(self.start_node.name)
+        destination_node_index = self.network.get_node_index(self.destination_node.name)
+        #create an array to store the paths to all the other nodes
+        num_nodes_in_network = len(self.network.node_names)
+        distance_to_nodes = np.zeros(num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
+        evaluated_nodes = np.zeros(num_nodes_in_network)  #when a node is evaluated the value in this matrix is set to infinite, ensuring that node is never evaluated again
+        distance_to_nodes[start_node_index] = 0 #initial distance to reach the starting node is 0
+        distance_to_final_destination = self.network.distance_to_all[:,destination_node_index]
+        path_to_nodes = [[] for _ in range(num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
+        #now that we have extracted preliminary data, start the pathfinding operation
+        while True: #loop till we meet an exit condition
+            expected_distance_to_nodes = distance_to_nodes + distance_to_final_destination + evaluated_nodes #expected (minimal) distance to reach a node
+            min_index = np.argmin(expected_distance_to_nodes) #get the index of the node with the lowest expected travel time, evaluate this next
+            minimum_expected_distance = expected_distance_to_nodes[min_index]
+            #print('evaluating ',self.network.nodes[min_index].name,' which takes ',distance_to_nodes[min_index],' to reach from start') #DEBUG
+            #print('and ',expected_distance_to_nodes[min_index],' to reach final through') #DEBUG
+            if minimum_expected_distance == np.inf:
+                break #break out of the loop, we have explored all the network we can reach
+            elif min_index == destination_node_index:
+                #print('we have found the destination node')
+                self.destination_path = path_to_nodes[destination_node_index]
+                #print(self.destination_path)
+                break
+            else:
+                minimum_distance = distance_to_nodes[min_index] #extract the time taken to reach the node being evaluated
+                current_time = minimum_distance + self.start_time #time at which we reach the node currently being evaluated
+                #otherwise, explore paths from the minimal node
+                if min_index==start_node_index:
+                    #use precalculated data from the starting node
+                    next_service_times = start_next_service_times
+                    nodes_after = start_nodes_after
+                    times_after = start_node_times_after
+                    schedule_names = start_schedule_names
+
+                else:
+                    #otherwise calculate data about vehicle arrivials at nodes on the fly
+                    next_service_times,nodes_after,times_after,schedule_names = self.start_node.provide_next_services(start=False,data_time=current_time)
+
+                #now it's time to calculate the path to other nodes
+                num_schedules = len(next_service_times)
+                for i in range(num_schedules):
+                    #extract nodes and times after for this specific route
+                    next_service_time = next_service_times[i]
+                    next_service_name = schedule_names[i]
+                    route_nodes_after = nodes_after[i]
+                    route_times_after = times_after[i]
+                    for j,node in enumerate(route_nodes_after):
+                        node_index = self.network.get_node_index(node.name) #yes this is extremely inefficient, yes I will fix at some point
+                        distance_to_current_node_old_path = distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
+                        distance_to_current_node_new_path = minimum_distance + next_service_time + route_times_after[j] #how long to reach next node through evaluation node
+                        #print('to reach ',node.name,' current best is ',distance_to_current_node_old_path,' new path is ',distance_to_current_node_new_path) #DEBUG
+                        if distance_to_current_node_new_path<distance_to_current_node_old_path:
+                            #if so, we have found a better path
+                            #print('we have found a better path') #DEBUG
+                            distance_to_nodes[node_index] = distance_to_current_node_new_path
+                            #a step in a route is of the format ['schedule_to_catch','station_to_get_off']
+                            route_step = [next_service_name,node.name]
+                            route_to_old_node = path_to_nodes[min_index] #extract the path to the evaluation node
+                            #print('route to previous node ',route_to_old_node) #DEBUG
+                            #print('route step ',route_step)
+                            route_to_new_node = copy.copy(route_to_old_node) #path to the next node is path to the evaluation node + new step
+                            route_to_new_node.append(route_step)
+                            #print('new route ',route_to_new_node) #DEBUG
+                            path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
+                           
+                            
+                
+                #mark the evaluated node as evaluated, it will not be evaluated again
+                evaluated_nodes[min_index] = np.inf
+
+        if distance_to_nodes[destination_node_index]==np.inf: #we have not found a path to our destination
+            print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name)
+        
+    #print the path from the start destination to the end destination
+    def test_agent_path(self):
+        print('START ',self.start_node.name)
+        print('DESTINATION ',self.destination_node.name)
+        print("PATH ",self.destination_path)
+        
+
+
+
+
+
+        
+
 
