@@ -287,15 +287,61 @@ class Network:
     def create_passenger(self,start_node,end_node):
         #create the passenger
         self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
-        self.agents.append(a.Agent(start_node,end_node,self.agent_id_counter,self.time,self)) #create the new passengers and add to the list
+        new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self)
+        self.agents.append(new_agent) #create the new passengers and add to the list
         self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
         #assign the passenger to their starting station
-        start_node.add_agent(start_node)
+        start_node.add_agent(new_agent)
 
     #update when the next vehicle in each schedule will arrive at each node
     def update_nodes_next_vehicle(self):
         for node in self.nodes:
             node.self_time_till_next_vehicles(self.time)
+
+    #passengers alight from vehicles which have stopped
+    def alight_passengers(self):
+        #loop through all vehicles
+        for i,vehicle in enumerate(self.vehicles):
+             #if a vehicle is at stop, passengers may alight
+            if vehicle.state == 'at_stop':
+                stop_node = vehicle.previous_stop #where did the vehicle stop
+                schedule_name = vehicle.schedule_name
+                #go through all the agents on the vehicle
+                for j,agent in enumerate(stop_node.agents):
+                    alight_status = agent.alight(stop_node.name)
+                    if alight_status == 1: #agent is alighting
+                        agent = vehicle.agents.pop(j) #remove them from the list of agents at the vehicle
+                        stop_node.append(agent) #and add them to list of agents at the station
+                    elif alight_status == 2: #agent is alighting at their destination
+                        agent = vehicle.agents.pop(j)
+                        agent_index = self.agent_ids.index(agent.id) #get the index of the agent in the agent storage array
+                        del self.agents[agent_index] #delete the agent from the world, as they have achieved their goal in life
+                    elif alight_status == 0: #agent is not alighting
+                        pass
+
+
+    #passengers board vehicles which have stopped
+    def board_passengers(self):
+         #loop through all vehicles
+        for i,vehicle in enumerate(self.vehicles):
+            if vehicle.state == 'at_stop':
+                #if a vehicle is at stop, we need to board passengers
+                stop_node = vehicle.previous_stop #where did the vehicle stop
+                schedule_name = vehicle.schedule_name
+                #go through all the agents where the vehicle stopped
+                for j,agent in enumerate(stop_node.agents):
+                    will_board = agent.board(schedule_name)
+                    if will_board == True:
+                        #if the agent is getting on the vehicles
+                        agent = stop_node.agents.pop(j) #remove them from the list of agents at the node
+                        vehicle.agents.append(agent) #and add them to the list of agents on the vehicle
+                    else:
+                        pass
+
+
+       
+
+
 
     #update time by one unit        
     def update_time(self):
@@ -304,11 +350,11 @@ class Network:
         
         self.move_vehicles() #move vehicles around the network
         self.update_nodes_next_vehicle() #update when the next vehicles will arrive at each node
-        #self.alight_passengers() #passengers alight from vehicles
+        self.alight_passengers() #passengers alight from vehicles
         #self.remove_arrived_vehicles()  #remove vehicles which have completed their path
         self.assign_vehicles_schedule() #create new vehicles at scheduled locations
         self.create_all_passengers() #create new passengers
-        #self.board_passengers() #passengers board vehicles 
+        self.board_passengers() #passengers board vehicles 
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time

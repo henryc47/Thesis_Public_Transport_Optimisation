@@ -67,7 +67,7 @@ class Schedule:
     def add_schedule_times(self,arrival_times):
         self.schedule_times = arrival_times #this is a numpy array
 
-    #offset the schedule times by the current time to obtain time the time the vehicle will reach each node
+    #offset the schedule times by the current time to ob`tain time the time the vehicle will reach each node
     def offset_schedule_times(self,current_time):
         self.schedule_times = self.schedule_times + current_time
     

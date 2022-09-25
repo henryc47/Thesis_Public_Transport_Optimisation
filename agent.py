@@ -3,6 +3,7 @@ import copy as copy
 #agent.py
 #stores the agent class and related functionality
 
+#route_step = [next_service_name,node.name]
 
 class Agent:
     def __init__(self,start_node,destination_node,id,start_time,network):
@@ -13,6 +14,7 @@ class Agent:
         self.network = network #reference to the network object
         self.destination_path = [] #path of actions to the destination node
         self.pathfind()
+
 
     #calculate a path from the start to the destination
     #store this path inside the agent
@@ -76,13 +78,12 @@ class Agent:
                             #if so, we have found a better path
                             #print('we have found a better path') #DEBUG
                             distance_to_nodes[node_index] = distance_to_current_node_new_path
-                            #a step in a route is of the format ['schedule_to_catch','station_to_get_off']
-                            route_step = [next_service_name,node.name]
                             route_to_old_node = path_to_nodes[min_index] #extract the path to the evaluation node
                             #print('route to previous node ',route_to_old_node) #DEBUG
                             #print('route step ',route_step)
                             route_to_new_node = copy.copy(route_to_old_node) #path to the next node is path to the evaluation node + new step
-                            route_to_new_node.append(route_step)
+                            route_to_new_node.append(next_service_name) #store the next service we need to catch
+                            route_to_new_node.append(node.name) #and when we need to get off that service
                             #print('new route ',route_to_new_node) #DEBUG
                             path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
                            
@@ -93,7 +94,28 @@ class Agent:
 
         if distance_to_nodes[destination_node_index]==np.inf: #we have not found a path to our destination
             print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name)
-        
+
+    #ask the agent if it wishes to board a vehicle of a particular schedule
+    def board(self,schedule_name):
+        if schedule_name==self.destination_path[0]:
+            #board if schedule name matches with next schedule to board
+            del self.destination_path[0] #we only wish to board this service once
+            return True
+        else:
+            return False
+
+    #ask the agent if it wishes to alight a vehicle at a particular node
+    def alight(self,node_name):
+        if node_name==self.destination_path[0]:
+            #alight if node name matches with next node to alight at
+            del self.destination_path[0] #we only wish to alight at this node once
+            if len(self.destination_path)==0:
+                return 2 #indicate agent has come to the end of its journey after alighting here
+            else:
+                return 1 #indicate agent has alighted here, but still exists
+        else:
+            return 0 #indicate not alighting here
+
     #print the path from the start destination to the end destination
     def test_agent_path(self):
         print('START ',self.start_node.name)
