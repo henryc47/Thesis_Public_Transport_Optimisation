@@ -97,18 +97,25 @@ class Agent:
 
     #ask the agent if it wishes to board a vehicle of a particular schedule
     def board(self,schedule_name):
+        #print('boarding' ,self.destination_path)
         if schedule_name==self.destination_path[0]:
+            #print('boarding boarding')
             #board if schedule name matches with next schedule to board
             del self.destination_path[0] #we only wish to board this service once
+            #print('boarding',self.destination_path)
             return True
         else:
             return False
 
     #ask the agent if it wishes to alight a vehicle at a particular node
     def alight(self,node_name):
+        #print('alighting',self.destination_path)
+        #print('node name ',node_name)
         if node_name==self.destination_path[0]:
+            #print('alighting alighting')
             #alight if node name matches with next node to alight at
             del self.destination_path[0] #we only wish to alight at this node once
+            #print('alighting',self.destination_path)
             if len(self.destination_path)==0:
                 return 2 #indicate agent has come to the end of its journey after alighting here
             else:

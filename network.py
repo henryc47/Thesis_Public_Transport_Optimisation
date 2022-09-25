@@ -307,7 +307,7 @@ class Network:
                 stop_node = vehicle.previous_stop #where did the vehicle stop
                 schedule_name = vehicle.schedule_name
                 #go through all the agents on the vehicle
-                for j,agent in enumerate(stop_node.agents):
+                for j,agent in enumerate(vehicle.agents):
                     alight_status = agent.alight(stop_node.name)
                     if alight_status == 1: #agent is alighting
                         agent = vehicle.agents.pop(j) #remove them from the list of agents at the vehicle
@@ -316,6 +316,7 @@ class Network:
                         agent = vehicle.agents.pop(j)
                         agent_index = self.agent_ids.index(agent.id) #get the index of the agent in the agent storage array
                         del self.agents[agent_index] #delete the agent from the world, as they have achieved their goal in life
+                        del self.agent_ids[agent_index] #and delete it's corresponding ID
                     elif alight_status == 0: #agent is not alighting
                         pass
 
@@ -347,14 +348,21 @@ class Network:
     def update_time(self):
         if self.verbose>=1:
             print('time ', self.time)
-        
+        if self.verbose>=1:
+            print('at start num passengers ', len(self.agents))
         self.move_vehicles() #move vehicles around the network
         self.update_nodes_next_vehicle() #update when the next vehicles will arrive at each node
         self.alight_passengers() #passengers alight from vehicles
+        if self.verbose>=1:
+            print('after alighting num passengers ', len(self.agents))
         #self.remove_arrived_vehicles()  #remove vehicles which have completed their path
         self.assign_vehicles_schedule() #create new vehicles at scheduled locations
         self.create_all_passengers() #create new passengers
-        self.board_passengers() #passengers board vehicles 
+        if self.verbose>=1:
+            print('after creating new, new passengers ', len(self.agents))
+        self.board_passengers() #passengers board vehicles
+        if self.verbose>=1:
+            print('after boarding num passengers ', len(self.agents)) 
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time
