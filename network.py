@@ -37,7 +37,7 @@ class Edge:
 #node class, represents a location between which passengers can travel
 #the node stores the names of all the nodes which start at it
 class Node:
-    def __init__(self,name,coordinates):
+    def __init__(self,name,coordinates,id):
         self.name = name
         self.edge_names = []#list of all edges starting at this node
         self.edge_destinations = []#and the destination of each node
@@ -50,7 +50,8 @@ class Node:
         self.node_offset_time = [] #time between when a vehicle starts its journey along this schedule and when it reaches this node
         self.nodes_after = [] #list of nodes after this node on a schedule
         self.node_times_after = [] #time to reach nodes after tis node on the schedule
-    
+        self.id = id #id of the node
+
     #add an edge which starts at the node
     def add_edge(self,edge):
         if edge.start_node == self.name:#the edge will be stored with this node only if it starts at the node        
@@ -170,7 +171,7 @@ class Network:
         #and let's create the nodes
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
-            self.nodes.append(Node(self.node_names[i],node_positions[i]))
+            self.nodes.append(Node(self.node_names[i],node_positions[i],i)) #nodes id is it's position in the array
 
         #extract edge data
         self.edge_starts = edges_csv["Start"].to_list()
@@ -231,7 +232,7 @@ class Network:
         #produce a shallow copy of the schedule to provide to the vehicle, note we use a class defined implemention of shallow-copying
         copy_schedule = copy.copy(schedule) #copy the schedule object, but maintain keep references to node/edges identical
         junk,start_node = copy_schedule.provide_next_destination() #extract the first destination of the schedule
-        start_node_index = self.get_node_index(start_node.name)
+        start_node_index = start_node.id
         self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
         self.vehicle_names.append(vehicle_name) #add the vehicles name to the list
         self.vehicles.append(vehicle.Vehicle(copy_schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
@@ -408,7 +409,9 @@ class Network:
             current_vehicle_longitudes.append(longitude)
             current_vehicle_names.append(vehicle.name)
             current_vehicle_passenger_counts.append(vehicle.count_agents())
-            #print(vehicle.name) #DEBUG
+            if self.verbose>=1:
+                print('vehicle ',vehicle.name) #DEBUG
+                print('num passengers ',vehicle.count_agents())
             #print(longitude) #DEBUG
         #and store that list in a list containing data for all time
         self.vehicle_latitudes.append(current_vehicle_latitudes)

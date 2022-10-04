@@ -8,6 +8,10 @@ import numpy as np
 import network as n
 import warnings as warnings
 from os import path#for checking if file exists
+import cProfile as profile
+import pstats
+from pstats import SortKey
+
 
 class Display:
 
@@ -144,7 +148,9 @@ class Display:
         self.setup_simulation_button = tk.Button(master=self.main_controls,text="SETUP SIMULATION",fg='black',bg='white',command=self.setup_simulation_click,width=20)
         self.setup_simulation_button.pack()
         #this button will run the basic simulation
-        self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.run_simulation_click,width=20)
+        #self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.run_simulation_click,width=20)
+        #this option with profiling
+        self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.profile_run_simulation_click,width=20)
         self.run_simulation_button.pack()
         #this button will play back the basic simulation
         self.view_simulation_button = tk.Button(master=self.main_controls,text="VIEW SIMULATION",fg='black',bg='white',command=self.view_simulation_click,width=20)
@@ -299,6 +305,18 @@ class Display:
         
         self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
 
+    #run the simulation click using Cprofile to determine running times
+    def profile_run_simulation_click(self):
+        profile.runctx("self.run_simulation_click()",globals(),locals(), 'restats')
+        #print how long inside the function call does each called function take
+        p = pstats.Stats('restats')
+        p.strip_dirs()
+        p.sort_stats(SortKey.TIME)
+        p.print_stats()
+
+
+
+    #run the basic simulation
     def run_simulation_click(self):
         if self.simulation_setup_flag == True:
             simulation_start_message = 'simulation started'

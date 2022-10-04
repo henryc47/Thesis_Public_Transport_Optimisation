@@ -22,9 +22,9 @@ class Agent:
         #print('start ',self.start_node.name,' destination ',self.destination_node.name) #DEBUG
         #get info about vehicles arriving at the starting node
         start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.start_node.provide_next_services(start=True)
-        #get index of starting and ending nodes in the network structure
-        start_node_index = self.network.get_node_index(self.start_node.name)
-        destination_node_index = self.network.get_node_index(self.destination_node.name)
+        #get index (id) of starting and ending nodes in the network structure
+        start_node_index = self.start_node.id
+        destination_node_index = self.destination_node.id
         #create an array to store the paths to all the other nodes
         num_nodes_in_network = len(self.network.node_names)
         distance_to_nodes = np.zeros(num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
@@ -70,7 +70,7 @@ class Agent:
                     route_nodes_after = nodes_after[i]
                     route_times_after = times_after[i]
                     for j,node in enumerate(route_nodes_after):
-                        node_index = self.network.get_node_index(node.name) #yes this is extremely inefficient, yes I will fix at some point
+                        node_index = node.id
                         distance_to_current_node_old_path = distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
                         distance_to_current_node_new_path = minimum_distance + next_service_time + route_times_after[j] #how long to reach next node through evaluation node
                         #print('to reach ',node.name,' current best is ',distance_to_current_node_old_path,' new path is ',distance_to_current_node_new_path) #DEBUG
