@@ -6,13 +6,14 @@ import copy as copy
 #route_step = [next_service_name,node.name]
 
 class Agent:
-    def __init__(self,start_node,destination_node,id,start_time,network):
+    def __init__(self,start_node,destination_node,id,start_time,network,number_passengers=1):
         self.start_node = start_node 
         self.destination_node = destination_node
         self.id = id
         self.start_time = start_time
         self.network = network #reference to the network object
         self.destination_path = [] #path of actions to the destination node
+        self.number_passengers = number_passengers #number of passengers represented by this agent
         self.pathfind()
 
 

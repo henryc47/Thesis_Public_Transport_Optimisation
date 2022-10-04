@@ -82,7 +82,10 @@ class Vehicle:
 
     #count the number of agents in the vehicle
     def count_agents(self):
-        return len(self.agents)
+        num_agents = 0
+        for agent in self.agents:
+            num_agents = num_agents + agent.number_passengers
+        return num_agents 
 
 
 

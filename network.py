@@ -100,7 +100,11 @@ class Node:
 
     #count the number of agents at the station
     def count_agents(self):
-        return len(self.agents)
+        num_agents = 0
+        for agent in self.agents:
+            num_agents = num_agents + agent.number_passengers
+        return num_agents 
+
 
     #add a schedule which stops at that station
     def add_stopping_schedule(self,schedule_name,schedule_gap,schedule_offset,search_node_time,nodes_after,node_times_after):
@@ -280,15 +284,15 @@ class Network:
         chance_additional_passenger = num_passengers_per_min-int_num_passengers #chance of an additional passenger being created from the remainder
         num_passengers = int_num_passengers + random_true(chance_additional_passenger) #get the final number of passengers to be created
         #now create the actual passengers at the stations
-        for i in range(num_passengers):
-            self.create_passenger(start_node,end_node)
+        if num_passengers>0:
+            self.create_passenger(start_node,end_node,num_passengers)
 
 
     #create a single passenger
-    def create_passenger(self,start_node,end_node):
+    def create_passenger(self,start_node,end_node,num_passengers):
         #create the passenger
         self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
-        new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self)
+        new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self,num_passengers)
         self.agents.append(new_agent) #create the new passengers and add to the list
         self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
         #assign the passenger to their starting station
