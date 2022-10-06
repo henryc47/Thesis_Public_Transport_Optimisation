@@ -487,6 +487,37 @@ class Display:
         self.pause_play_button = tk.Button(master=self.simulation_viz,text='PAUSED',fg='black',bg='white',width=20,command=self.pause_play_button_click)
         self.paused = True #simulation visualisation starts paused
         self.pause_play_button.pack()
+        #create controlsn to enable us to control the speed of the simulation
+        #first a label to indicate this
+        #note the label is set for self.sim_frame_time = 1
+        self.simulation_speed_label = tk.Label(master=self.simulation_viz,text='UPDATES PER SECOND = 1',fg='black',bg='white',width=20)
+        self.simulation_speed_label.pack()
+        #add a entry to enable us to enter the frame speed
+        self.simulation_speed_entry = tk.Entry(master=self.simulation_viz,fg='black',bg='white',width=20)
+        self.simulation_speed_entry.insert(0,self.sim_frame_time)
+        self.simulation_speed_entry.pack()
+        #add a button to update the frame speed
+        self.simulation_speed_update_button = tk.Button(master=self.simulation_viz,text='UPDATE SPEED',fg='black',bg='white',command=self.simulation_speed_update_click,width=20)
+        self.simulation_speed_update_button.pack()
+
+
+    def simulation_speed_update_click(self):
+        #extract the new updates per second
+        new_updates_per_second = self.simulation_speed_entry.get()
+        try:
+            #if it can be convert to a float 
+            new_updates_per_second = float(new_updates_per_second)
+
+        except:
+            error_text = str(new_updates_per_second) + " Is not numeric, please enter a numeric frame-rate"
+            self.log_print(error_text)
+        else:
+            #calculate the new time between frames
+            self.sim_frame_time = 1/new_updates_per_second
+            updates_per_second_text = 'UPDATES/SECOND = ' + str(new_updates_per_second)
+            self.simulation_speed_label.config(text=updates_per_second_text)
+
+        
 
     #control whether the simulation visulisation is paused or playing
     def pause_play_button_click(self):
