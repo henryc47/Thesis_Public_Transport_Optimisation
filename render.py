@@ -323,7 +323,7 @@ class Display:
             self.log_print(simulation_start_message)
             self.message_update(simulation_start_message)
             time1 = time.time()
-            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(60) #run the simulation and store the data
+            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(240) #run the simulation and store the data
             self.setup_default_sim_current_values() #set default values for information about specific timesteps
             self.simulation_run_flag = True #simulation has been run and relevant values have been stored
             time2 = time.time()
@@ -364,32 +364,35 @@ class Display:
 
     #render a simulation update after a delay
     def render_simulation_update(self,index):
-        start_render_time = time.time() #get the time at the start of renderings
-        end_render_time = start_render_time + self.sim_frame_time  #calculate what time we need to move to the next frame to maintain a steady frame-rate
-        #extract the data for the current timestep
-        sim_time = self.sim_times[index]
-        #update the time display
-        time_text = 'TIME ' + str(sim_time)
-        self.time_label.config(text=time_text)
-        #extract other information from the calculate vehicles
-        self.extract_current_vehicles_info(index) #extract info about the vehicles in the current simulation timesteps
-        self.extract_current_nodes_info(index) #extract info about the nodes in the current simulation timesteps
-        self.calculate_vehicle_position() #calculate the position of the vehicles in the network
-        self.simulation_view_flag = True #simulation view has been setup
-        self.render_graph()  #now re-render the simulated world
-        self.update_text_same_node() 
-        self.generate_edge_overlay_text()
-        #after rendering, wait till we reach the time set for the next visual update
-        remaining_frame_time = end_render_time-time.time()
-        index = index + 1 #index of the next batch of data
-        if index>=self.num_sim_times: #we have finished displaying the simulation
-            self.log_print("Simulation Display Finished")
-            self.message_update("Simulated Display Finished")
-            self.simulation_view_flag = False #simulation is no longer being run
-            self.simulation_past_vehicles_flag = True #past vehicles still exist that will need to be deleted if we replay the simulation
-        elif index < self.num_sim_times:
-            #call the callback again once we have waited long enough
-            self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
+        if self.paused == False: #if we are playing back the simulation, play the next frame
+            start_render_time = time.time() #get the time at the start of renderings
+            end_render_time = start_render_time + self.sim_frame_time  #calculate what time we need to move to the next frame to maintain a steady frame-rate
+            #extract the data for the current timestep
+            sim_time = self.sim_times[index]
+            #update the time display
+            time_text = 'TIME ' + str(sim_time)
+            self.time_label.config(text=time_text)
+            #extract other information from the calculate vehicles
+            self.extract_current_vehicles_info(index) #extract info about the vehicles in the current simulation timesteps
+            self.extract_current_nodes_info(index) #extract info about the nodes in the current simulation timesteps
+            self.calculate_vehicle_position() #calculate the position of the vehicles in the network
+            self.simulation_view_flag = True #simulation view has been setup
+            self.render_graph()  #now re-render the simulated world
+            self.update_text_same_node() 
+            self.generate_edge_overlay_text()
+            #after rendering, wait till we reach the time set for the next visual update
+            remaining_frame_time = end_render_time-time.time()
+            index = index + 1 #index of the next batch of data
+            if index>=self.num_sim_times: #we have finished displaying the simulation
+                self.log_print("Simulation Display Finished")
+                self.message_update("Simulated Display Finished")
+                self.simulation_view_flag = False #simulation is no longer being run
+                self.simulation_past_vehicles_flag = True #past vehicles still exist that will need to be deleted if we replay the simulation
+            elif index < self.num_sim_times:
+                #call the callback again once we have waited long enough
+                self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
+        if self.paused == True:
+            self.time_label.after(10,self.render_simulation_update,index) #check to see if we are still paused 100 times per second
 
     def extract_current_vehicles_info(self,index):
         #extract the info for the current time (given by index)
@@ -475,11 +478,24 @@ class Display:
 
     def setup_simulation_viz_tools(self):
         #create the overall frame
+        self.secondary_control_mode = 'simulation_viz' #simulation viz mode is being displayed
         self.simulation_viz = tk.Frame(master=self.main_controls)
-        #self.simulation_viz.pack(side = tk.TOP)
+        #create a label to display the time
         self.time_label = tk.Label(master=self.simulation_viz,text='TIME',fg='black',bg='white',width=20)
         self.time_label.pack()
-        self.secondary_control_mode = 'simulation_viz' #simulation viz mode is being displayed
+        #create a button to enable us to control whether the simulation is running
+        self.pause_play_button = tk.Button(master=self.simulation_viz,text='PAUSED',fg='black',bg='white',width=20,command=self.pause_play_button_click)
+        self.paused = True #simulation visualisation starts paused
+        self.pause_play_button.pack()
+
+    #control whether the simulation visulisation is paused or playing
+    def pause_play_button_click(self):
+        if self.paused == True:
+            self.paused = False
+            self.pause_play_button.config(text="PLAYING")
+        elif self.paused == False:
+            self.paused = True
+            self.pause_play_button.config(text="PAUSED")
 
     #hide the network_viz tool controls 
     def clear_network_viz_tools(self):
