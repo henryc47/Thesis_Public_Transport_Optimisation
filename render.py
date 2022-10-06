@@ -484,8 +484,8 @@ class Display:
         self.time_label = tk.Label(master=self.simulation_viz,text='TIME',fg='black',bg='white',width=20)
         self.time_label.pack()
         #create a button to enable us to control whether the simulation is running
-        self.pause_play_button = tk.Button(master=self.simulation_viz,text='PAUSED',fg='black',bg='white',width=20,command=self.pause_play_button_click)
-        self.paused = True #simulation visualisation starts paused
+        self.pause_play_button = tk.Button(master=self.simulation_viz,text='PLAYING',fg='black',bg='white',width=20,command=self.pause_play_button_click)
+        self.paused = False #simulation visualisation starts paused
         self.pause_play_button.pack()
         #create controlsn to enable us to control the speed of the simulation
         #first a label to indicate this
