@@ -311,16 +311,20 @@ class Network:
             if vehicle.state == 'at_stop':
                 stop_node = vehicle.previous_stop #where did the vehicle stop
                 schedule_name = vehicle.schedule_name
+                copy_vehicle_agents = copy.copy(vehicle.agents) #create a shallow copy of the list of agents at the vehicle (agents will be the same, but references will be independent
+                num_removed = 0 #keep of number removed so we can pop the right agents
                 #go through all the agents on the vehicle
-                for j,agent in enumerate(vehicle.agents):
+                for j,agent in enumerate(copy_vehicle_agents):
                     alight_status = agent.alight(stop_node.name)
                     if alight_status == 1: #agent is alighting
-                        agent = vehicle.agents.pop(j) #remove them from the list of agents at the vehicle
+                        agent = vehicle.agents.pop(j-num_removed) #remove them from the list of agents at the vehicle
+                        num_removed = num_removed + 1
                         stop_node.append(agent) #and add them to list of agents at the station
                     elif alight_status == 2: #agent is alighting at their destination
-                        agent = vehicle.agents.pop(j)
+                        agent = vehicle.agents.pop(j-num_removed)
+                        num_removed = num_removed + 1
                         agent_index = self.agent_ids.index(agent.id) #get the index of the agent in the agent storage array
-                        del self.agents[agent_index] #delete the agent from the world, as they have achieved their goal in life
+                        del self.agents[agent_index] #delete the agent from the world, as they have reached their destination
                         del self.agent_ids[agent_index] #and delete it's corresponding ID
                     elif alight_status == 0: #agent is not alighting
                         pass
@@ -334,18 +338,18 @@ class Network:
                 #if a vehicle is at stop, we need to board passengers
                 stop_node = vehicle.previous_stop #where did the vehicle stop
                 schedule_name = vehicle.schedule_name
-                #go through all the agents where the vehicle stopped
-                for j,agent in enumerate(stop_node.agents):
+                copy_stop_node_agents = copy.copy(stop_node.agents) #create a shallow copy of the list of agents at the node (agents will be the same, but references will be independent)
+                num_removed = 0 #keep of number removed so we can pop the right agent
+                for j,agent in enumerate(copy_stop_node_agents): #go through all the agents where the vehicle stopped
                     will_board = agent.board(schedule_name)
                     if will_board == True:
                         #if the agent is getting on the vehicles
-                        agent = stop_node.agents.pop(j) #remove them from the list of agents at the node
+                        agent = stop_node.agents.pop(j-num_removed) #remove them from the list of agents at the node, making sure to account for the change in the array size due to removed agents
                         vehicle.agents.append(agent) #and add them to the list of agents on the vehicle
+                        num_removed = num_removed + 1 #we have removed another agent
                     else:
+                        #if agent is not boarding, we do not need to do anything
                         pass
-
-
-       
 
 
 
