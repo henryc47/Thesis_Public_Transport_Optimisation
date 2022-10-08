@@ -56,6 +56,7 @@ class Display:
         self.sim_frame_time = 1 #how many seconds between simulation view updates, reciprocal of frame-rate
         #index of vehicle text popups
         self.index_vehicle_text_popup = -1 #default value, to indicate no such object
+        self.name_vehicle_text_popup = -1 #default value, to indicate no such object
         #default vehicle capacities, used for determining vehicle colours based on crowding levels
         #note standing capacity is standing + seated capacity
         self.vehicle_seated_capacity = 960 #sydney trains A/B class, 8 carriage
@@ -380,6 +381,7 @@ class Display:
             self.time_label.config(text=time_text)
             #extract other information from the calculate vehicles
             self.extract_current_vehicles_info(index) #extract info about the vehicles in the current simulation timesteps
+            self.update_vehicle_text_index() #update the index of the vehicle whose info we are displaying as a popup
             self.extract_current_nodes_info(index) #extract info about the nodes in the current simulation timesteps
             self.calculate_vehicle_position() #calculate the position of the vehicles in the network
             self.simulation_view_flag = True #simulation view has been setup
@@ -399,6 +401,25 @@ class Display:
                 self.time_label.after(int(remaining_frame_time*1000),self.render_simulation_update,index)
         if self.paused == True:
             self.time_label.after(10,self.render_simulation_update,index) #check to see if we are still paused 100 times per second
+    
+    #update the index of the vehicle whose info we are displaying as a popup
+    def update_vehicle_text_index(self):
+        try:
+            #get the new index of the vehicle
+            new_index = self.sim_vehicles_current_names.index(self.name_vehicle_text_popup) 
+        except ValueError:
+            #in this case, the vehicle no longer exists
+            #hence delete text popups
+            #delete text popups
+            self.derender_hover_vehicle_text()
+            #and reset index of vehicle whom we are providing info about
+            self.name_vehicle_text_popup = -1
+            self.index_vehicle_text_popup = -1
+        else:
+            #change the stored index to reflect the new position in the list of current vehicles
+            self.index_vehicle_text_popup = new_index
+
+
 
     def extract_current_vehicles_info(self,index):
         #extract the info for the current time (given by index)
@@ -1517,12 +1538,11 @@ class Display:
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.vehicle_canvas_ids.index(event_id)
         vehicle_name = self.sim_vehicles_current_names[id_index]
-        upper_text = vehicle_name
-        lower_text = self.sim_vehicles_current_passengers[id_index]
         #delete hover text if it exists
         self.derender_hover_vehicle_text()
         #create new text popups
         self.index_vehicle_text_popup = id_index #record the index of the vehicle whose text popup we are creating
+        self.name_vehicle_text_popup = vehicle_name #and also record the name, this is used to handle situations where the lists of vehicles changes
         self.render_hover_vehicle_text()
         
         
@@ -1542,6 +1562,10 @@ class Display:
     def vehicle_right_click(self,event):
         event_id = event.widget.find_withtag('current')[0]
         id_index = self.vehicle_canvas_ids.index(event_id)
+        #right clicks will reset the vehicle popup text rendering
+        self.derender_hover_vehicle_text()
+        self.index_vehicle_text_popup = -1
+        self.name_vehicle_text_popup = -1
         #placeholder for future functionality
         
 
