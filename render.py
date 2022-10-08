@@ -54,6 +54,10 @@ class Display:
         self.text_id_line_end = -1 #default value, to indicate no such object
         self.text_id_line_start = -1 #default value, to indicate no such object
         self.sim_frame_time = 1 #how many seconds between simulation view updates, reciprocal of frame-rate
+        #default vehicle capacities, used for determining vehicle colours based on crowding levels
+        #note standing capacity is standing + seated capacity
+        self.vehicle_seated_capacity = 960 #sydney trains A/B class, 8 carriage
+        self.vehicle_standing_capacity = 1680 #sydney trains A/B class, 8 carriage, roughly 4 pax/m^2 open space
 
     #set the various flags (and modes) used by the rendering engine to their default value
     def set_default_flags(self):
@@ -342,6 +346,8 @@ class Display:
         self.sim_vehicles_current_latitudes = []
         self.sim_vehicles_current_longitudes = []
         self.sim_vehicles_current_current_passengers = []
+        self.sim_vehicles_current_colour = []
+        self.sim_vehicles_current_length = []
 
     def view_simulation_click(self):
         if self.simulation_run_flag == False: #simulation needs to be run to be displayed
@@ -499,7 +505,29 @@ class Display:
         #add a button to update the frame speed
         self.simulation_speed_update_button = tk.Button(master=self.simulation_viz,text='UPDATE SPEED',fg='black',bg='white',command=self.simulation_speed_update_click,width=20)
         self.simulation_speed_update_button.pack()
+        #add controls for vehicle appearance rendering
+        self.vehicle_appearance_label = tk.Label(master=self.network_viz,text='VEHICLE APPEARANCE',fg='black',bg='white',width=20)
+        self.vehicle_appearance_label.pack()
+        #add button to control vehicle colour
+        self.vehicle_colour_button = tk.Button(master=self.simulation_viz,text="VEHICLE COLOUR BASED \n ON CROWDING",fg='black',bg='white',command=self.vehicle_colour_click,width=20,height=2)
+        self.vehicle_colour_type = "crowding" #by default, vehicle colours will be based off the level of crowding in the vehicle
+        self.vehicle_colour_button.pack()
 
+    def vehicle_colour_click(self):
+        if self.vehicle_colour_type == "crowding":
+            self.vehicle_colour_type = "constant"
+        elif self.vehicle_colour_type == "constant":
+            self.vehicle_colour_type = "crowding"
+        
+        self.vehicle_colour_button_text_update()
+        self.calculate_vehicle_position #rerender vehicles to match the new colour scheme 
+    
+    def vehicle_colour_button_text_update(self):
+        if self.vehicle_colour_type == "crowding":
+            self.vehicle_colour_button.config(text="VEHICLE COLOUR BASED \n ON CROWDING")
+        elif self.vehicle_colour_type == "constant":
+            self.vehicle_colour_button.config(text="CONSTANT")
+    
 
 
     def simulation_speed_update_click(self):
@@ -959,6 +987,41 @@ class Display:
             #convert 24 bit RGB colour to the hex format expected by tkinter 
             self.nodes_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
+    #calculate vehicle colours based on how crowded the vehicles are
+    #note at the moment, this code requires all vehicles to all have the same capacity
+    def calculate_vehicle_colours_crowding(self,vehicle_num_passengers,seated_capacity,standing_capacity):
+        #blue is empty, green is half seated capacity, yellow is full seated capacity, red is full standing capacity
+        num_vehicles = len(vehicle_num_passengers)
+        for i in range(num_vehicles):
+            this_vehicle_num_passengers = vehicle_num_passengers[i]
+            if this_vehicle_num_passengers<=seated_capacity:
+                fraction_seated_capacity = this_vehicle_num_passengers/seated_capacity
+                midpoint = 0.5
+                if fraction_seated_capacity<=midpoint:
+                    #for less than half seats occupied
+                    #no red, smooth transition from blue to green
+                    red = 0
+                    green = fraction_seated_capacity/midpoint
+                    blue = 1 - green
+                else:
+                    #for more than half seats occupied but no standing
+                    #smooth transition from green to yellow
+                    red = (fraction_seated_capacity-midpoint)/(1-midpoint)
+                    green = 1
+                    blue = 0
+            elif this_vehicle_num_passengers<=standing_capacity:
+                fraction_standing_capacity = (this_vehicle_num_passengers-seated_capacity)/(standing_capacity-seated_capacity)
+                #smooth transition from yellow at no-standing to red at max standing
+                red = 1
+                green = 1-fraction_standing_capacity
+                blue = 0
+            else:
+                #for overloaded vehicles
+                red = 1
+                green = 0
+                blue = 0
+            #now set the colour of the vehicle
+            self.sim_vehicles_current_colour[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
 
     #FUNCTIONS TO DETERINE EDGE WIDTH/COLOUR
     #set edge width based on data about the edge (which data depends on mode)
@@ -1212,7 +1275,7 @@ class Display:
         self.edges_midpoint_x_original = self.edges_midpoint_x
         self.edges_midpoint_y_original = self.edges_midpoint_y
 
-    #calculate te position of vehicles
+    #calculate the position, colour and size of vehicles
     def calculate_vehicle_position(self):
         #as vehicle quantities change from timestep to timestep, need to delete old vehicles first
         self.derender_vehicles()    
@@ -1220,7 +1283,7 @@ class Display:
         self.sim_vehicles_current_x = []
         self.sim_vehicles_current_y = []
         self.sim_vehicles_current_length = [self.default_vehicle_length]*num_vehicles
-        self.sim_vehicles_current_colour = [self.default_vehicle_colour]*num_vehicles
+        self.set_vehicle_colours() #set the vehicle colour based on the choosen mode
         self.vehicle_canvas_ids = ['blank']*num_vehicles #canvas ids for the nodes themsleves
         for i in range(num_vehicles):
             x,y = self.convert_lat_long_to_x_y(self.sim_vehicles_current_latitudes[i],self.sim_vehicles_current_longitudes[i])
@@ -1229,6 +1292,20 @@ class Display:
             self.sim_vehicles_current_y.append(y)
         self.sim_vehicles_current_x_original = self.sim_vehicles_current_x
         self.sim_vehicles_current_y_original = self.sim_vehicles_current_y
+
+    #function to set the colour of vehicles
+    def set_vehicle_colours(self):
+        num_vehicles = len(self.sim_vehicles_current_names)
+        self.sim_vehicles_current_colour = [self.default_vehicle_colour]*num_vehicles
+        if self.vehicle_colour_type == "constant":
+            pass #default colours have already been set
+        elif self.vehicle_colour_type == "crowding":
+            self.calculate_vehicle_colours_crowding(self.sim_vehicles_current_passengers,self.vehicle_seated_capacity,self.vehicle_standing_capacity)
+        else:
+            #default to the default colour, which has already been set
+            message = "INVALID COLOUR TYPE " + self.vehicle_colour_type + "\n COLOUR SET TO DEFAULT"
+            self.log_print(message)
+            
 
     #FUNCTIONS PERFORMING ACTUAL RENDERING
     #derender displayed vehicles

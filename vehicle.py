@@ -7,7 +7,7 @@ import network as Network
 #base vehicle class
 class Vehicle:
     #create the vehicle
-    def __init__(self,schedule,start_time,name):
+    def __init__(self,schedule,start_time,name,seated_capacity=960,standing_capacity=1680):
         self.schedule = copy.copy(schedule)
         self.schedule_name = self.schedule.name
         self.name = name
