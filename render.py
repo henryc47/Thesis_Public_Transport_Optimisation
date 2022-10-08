@@ -54,6 +54,8 @@ class Display:
         self.text_id_line_end = -1 #default value, to indicate no such object
         self.text_id_line_start = -1 #default value, to indicate no such object
         self.sim_frame_time = 1 #how many seconds between simulation view updates, reciprocal of frame-rate
+        #index of vehicle text popups
+        self.index_vehicle_text_popup = -1 #default value, to indicate no such object
         #default vehicle capacities, used for determining vehicle colours based on crowding levels
         #note standing capacity is standing + seated capacity
         self.vehicle_seated_capacity = 960 #sydney trains A/B class, 8 carriage
@@ -318,8 +320,6 @@ class Display:
         p.sort_stats(SortKey.TIME)
         p.print_stats()
 
-
-
     #run the basic simulation
     def run_simulation_click(self):
         if self.simulation_setup_flag == True:
@@ -345,7 +345,7 @@ class Display:
         self.sim_vehicles_current_names = []
         self.sim_vehicles_current_latitudes = []
         self.sim_vehicles_current_longitudes = []
-        self.sim_vehicles_current_current_passengers = []
+        self.sim_vehicles_current_passengers = []
         self.sim_vehicles_current_colour = []
         self.sim_vehicles_current_length = []
 
@@ -529,7 +529,6 @@ class Display:
             self.vehicle_colour_button.config(text="CONSTANT")
     
 
-
     def simulation_speed_update_click(self):
         #extract the new updates per second
         new_updates_per_second = self.simulation_speed_entry.get()
@@ -547,7 +546,6 @@ class Display:
             self.simulation_speed_label.config(text=updates_per_second_text)
 
         
-
     #control whether the simulation visulisation is paused or playing
     def pause_play_button_click(self):
         if self.paused == True:
@@ -1041,8 +1039,7 @@ class Display:
                 elif self.edge_width_type == 'time':
                     data = (np.asarray(reverse_edge_data) + np.asarray(reverse_edge_data))/2 #in time mode(which is not yet implemented) , take the average 
             
-            self.calculate_edge_widths(data)
-        
+            self.calculate_edge_widths(data)      
 
     #calculate and perform final setting of edge width based on provided information        
     def calculate_edge_widths(self,edges_quantity,mode='default'):
@@ -1054,7 +1051,6 @@ class Display:
             if self.edge_widths[i] < self.min_edge_width: #enforce the minimum size of a node
                 self.edge_widths[i] = self.min_edge_width
         
-
     def set_edge_colours(self):
         num_edges = len(self.edge_end_indices)
         if self.edge_colour_type =="constant":
@@ -1100,8 +1096,6 @@ class Display:
             
             #convert 24 bit RGB colour to the hex format expected by tkinter
             self.edge_colours[i] = RGB_TO_TK_HEX(int(red*255),int(green*255),int(blue*255))
-
-
 
     #FUNCTIONS CONTROLLING RENDERING OF NODES/EDGES
     #wrapper that recalculates node sizes and colours, and redraws the nodes
@@ -1306,7 +1300,6 @@ class Display:
             message = "INVALID COLOUR TYPE " + self.vehicle_colour_type + "\n COLOUR SET TO DEFAULT"
             self.log_print(message)
             
-
     #FUNCTIONS PERFORMING ACTUAL RENDERING
     #derender displayed vehicles
     def derender_vehicles(self,override=False):
@@ -1318,6 +1311,27 @@ class Display:
                 if self.vehicle_canvas_ids[i]!='blank':
                         #delete the old oval object if one exists
                         self.canvas.delete(self.vehicle_canvas_ids[i])
+
+    #derender the text produced by hovering over a vehicle
+    def derender_hover_vehicle_text(self):
+        if self.index_vehicle_text_popup ==-1:
+            pass #there are no vehicle hover text and hence no need to derender it
+        else:
+            self.canvas.delete(self.text_id_vehicle_lower)
+            self.canvas.delete(self.text_id_vehicle_upper)
+
+    #rerender the text after the vehicle has been moved/zoomed in/out
+    def render_hover_vehicle_text(self):
+        if self.index_vehicle_text_popup ==-1:
+            pass #there are no vehicle hover text and hence no need to render it
+        else:
+            x = self.sim_vehicles_current_x[self.index_vehicle_text_popup]
+            y = self.sim_vehicles_current_y[self.index_vehicle_text_popup]
+            vehicle_name = self.sim_vehicles_current_names[self.index_vehicle_text_popup]
+            lower_text = self.sim_vehicles_current_passengers[self.index_vehicle_text_popup]
+            self.text_id_vehicle_upper = self.canvas.create_text(x,y-30,text=vehicle_name,state=tk.DISABLED)
+            self.text_id_vehicle_lower = self.canvas.create_text(x,y-15,text=lower_text,state=tk.DISABLED)
+
 
     #derender edge text created by hovering
     def derender_hover_edge_text(self):
@@ -1380,6 +1394,7 @@ class Display:
     #draw the vehicle objects on the canvas
     def render_vehicles(self):
         num_vehicles = len(self.sim_vehicles_current_names)
+        self.derender_hover_vehicle_text() #remove existing vehicle hover text
         #loop through all the current vehicles
         for i in range(num_vehicles):
             #extract data
@@ -1392,8 +1407,14 @@ class Display:
                 #delete the old rectangle object if one exists
                 self.canvas.delete(self.vehicle_canvas_ids[i])
             id = self.canvas.create_rectangle(x-length,y-length,x+length,y+length,fill=colour)
+            self.canvas.tag_bind(id,'<Enter>',self.vehicle_enter) #some information about the vehicle will be displayed when the mouse is hovered over it
+            self.canvas.tag_bind(id,'<Leave>',self.vehicle_leave) #this information will be displayed when the mouse is no longer over the vehicle
+            self.canvas.tag_bind(id,'<Button-1>',self.vehicle_left_click) #this information will be displayed when the mouse is no longer over the vehicle
+            self.canvas.tag_bind(id,'<Button-2>',self.vehicle_right_click) #this information will be displayed when the mouse is no longer over the vehicle
             #add code to display info about the vehicle when we hover over it
             self.vehicle_canvas_ids[i] = id #store the id so we can delete the object later
+
+        self.render_hover_vehicle_text() #recreate old vehicle hover text at the new location
 
     #combination of render nodes and render edges, in correct order to prevent edges spawning over nodes
     def render_graph(self):
@@ -1401,7 +1422,6 @@ class Display:
         self.render_nodes()
         if self.simulation_run_flag == True:
             self.render_vehicles() #render vehicles if we are in simulation view mode
-
 
     #stop displaying all the nodes and edges
     def erase_network_graph(self):
@@ -1492,6 +1512,40 @@ class Display:
     def edge_leave(self,event):
         self.derender_hover_edge_text() #delete any hovering text related to the edge
 
+    #event for when we mouse over a vehicle
+    def vehicle_enter(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.vehicle_canvas_ids.index(event_id)
+        vehicle_name = self.sim_vehicles_current_names[id_index]
+        upper_text = vehicle_name
+        lower_text = self.sim_vehicles_current_passengers[id_index]
+        #delete hover text if it exists
+        self.derender_hover_vehicle_text()
+        #create new text popups
+        self.index_vehicle_text_popup = id_index #record the index of the vehicle whose text popup we are creating
+        self.render_hover_vehicle_text()
+        
+        
+    #event for when we mouse away from a vehicle
+    def vehicle_leave(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.vehicle_canvas_ids.index(event_id)
+        #at the moment, we don't actually do anything here as we still want to display info about the vehicle when we are hovering over it
+    
+    #event for when we left click a vehicle
+    def vehicle_left_click(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.vehicle_canvas_ids.index(event_id)
+        #placeholder for future functionality
+    
+    #event for when we right click a vehicle
+    def vehicle_right_click(self,event):
+        event_id = event.widget.find_withtag('current')[0]
+        id_index = self.vehicle_canvas_ids.index(event_id)
+        #placeholder for future functionality
+        
+
+
     #GENERAL CANVAS EVENT HANDLERS (FOR SCROLLING and ZOOMING IN/OUT)
     #zoom in/out
     def zoom_canvas(self,event):
@@ -1519,7 +1573,7 @@ class Display:
             self.update_text_same_node() 
             self.generate_edge_overlay_text()
 
-        #apply the accumulated zoom to newly created objects
+    #apply the accumulated zoom to newly created objects
     def apply_accumlated_zoom(self,x,y):
         new_x = (x*self.current_zoom)+(self.current_zoom_offset_x)
         new_y = (y*self.current_zoom)+(self.current_zoom_offset_y)
@@ -1558,7 +1612,6 @@ class Display:
         new_y = y*(1+zoom_delta)-(mouse_y*zoom_delta)
         return new_x,new_y
 
-
     #define pan function
     def pan_start(self,event):
         #get position of mouse at start of pan
@@ -1574,8 +1627,6 @@ class Display:
         #mouse_y = int(self.canvas.canvasy(event.y))
         #print('mouse x ',mouse_x,' mouse y ',mouse_y)
         self.canvas.scan_dragto(event.x, event.y,gain=self.scroll_gain) #record the position of start of scan
-
-
 
     #FUNCTIONS TO GENERATE INFO TEXT ABOVE NODES
 
@@ -1659,7 +1710,6 @@ class Display:
             data = self.sim_network.get_edge_traffic(edge_name)
         return data
 
-
     def extract_data_edges(self,type):
         forward_edge_data = []
         reverse_edge_data = []
@@ -1726,6 +1776,8 @@ class Display:
         for id in self.edge_text_ids:
             if id!='blank':
                 self.canvas.delete(id)
+
+    #FUNCTIONS TO GENERATE INFO TEXT ABOVE VEHICLES
 
 
     #FUNCTIONS TO PLOT A PATH BETWEEN TWO NODES
