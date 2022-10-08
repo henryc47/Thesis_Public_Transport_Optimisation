@@ -377,7 +377,7 @@ class Display:
             self.extract_current_nodes_info(index) #extract info about the nodes in the current simulation timesteps
             self.calculate_vehicle_position() #calculate the position of the vehicles in the network
             self.simulation_view_flag = True #simulation view has been setup
-            self.render_graph()  #now re-render the simulated world
+            self.update_nodes()
             self.update_text_same_node() 
             self.generate_edge_overlay_text()
             #after rendering, wait till we reach the time set for the next visual update
@@ -499,6 +499,7 @@ class Display:
         #add a button to update the frame speed
         self.simulation_speed_update_button = tk.Button(master=self.simulation_viz,text='UPDATE SPEED',fg='black',bg='white',command=self.simulation_speed_update_click,width=20)
         self.simulation_speed_update_button.pack()
+
 
 
     def simulation_speed_update_click(self):
@@ -680,7 +681,9 @@ class Display:
             #switch to mode where node size is based on total traffic coming too/from the clicked node
             self.node_size_type = "node_total" 
         elif self.node_size_type == "node_total":
-            #switch to mode where node size constant
+            #switch to mode where node size is based on the number of waiting passengers
+            self.node_size_type = "node_passengers"
+        elif self.node_size_type == "node_passengers":
             self.node_size_type = "constant"
         #update the text of the button
         self.node_size_button_text_update()
@@ -701,7 +704,9 @@ class Display:
                 self.node_size_button.config(text="NODE SIZE TOTAL TRAFFIC \n TO NODE")
         elif self.node_size_type == "constant":
             self.node_size_button.config(text="CONSTANT NODE SIZE")
-
+        elif self.node_size_type == "node_passengers":
+            self.node_size_button.config(text="NODE SIZE NUM PASSENGES \n WAITING AT NODE")
+    
     #command for button to switch between options for setting node colour
     def node_colour_click(self):
         if self.node_colour_type == "constant":
@@ -854,10 +859,16 @@ class Display:
             else:
                 trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
             self.calculate_node_sizes(trips,total)
+        
+        elif self.node_size_type == "node_passengers":
+            passengers = self.sim_node_current_passengers
+            total = np.sum(self.sim_network.origin_destination_trips) #use the total number of trips, we need a constant total to prevent nodes shrinking as number of passengers grows
+            self.calculate_node_sizes(passengers,total)
         else:
             warnings.warn("node_size_type " + self.node_size_type + " not yet impleneted using constant node size instead")
             #other modes not yet implemented, use constant node sizes instead
             self.nodes_radii = [self.default_node_radius]*num_nodes
+
 
     #set node colours in accordance with the mode choosen
     def set_node_colours(self):
@@ -902,6 +913,7 @@ class Display:
 
     #calculate_node_sizes based on provided information
     def calculate_node_sizes(self,nodes_quantity,total_quantity,mode='default'):
+        total_quantity = total_quantity + 1 #add 1 to prevent divide by zero errors
         num_nodes = len(nodes_quantity)
         for i in range(num_nodes):
             node_fraction = nodes_quantity[i]/total_quantity#fraction of total amount occuring at that node
