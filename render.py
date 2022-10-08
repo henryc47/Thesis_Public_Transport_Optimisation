@@ -719,6 +719,9 @@ class Display:
             #switch to mode where node colour is based on traffic going too/from the clicked node to other nodes
             self.node_colour_type = "node_total"
         elif self.node_colour_type=="node_total":
+            #switch to node colour being based on number of passengers waiting at the node
+            self.node_colour_type = "node_passengers"    
+        elif self.node_colour_type == "node_passengers":
             #switch to constant node colour
             self.node_colour_type = "constant"
             
@@ -745,9 +748,10 @@ class Display:
                 self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n FROM NODE")
             else:
                 self.node_colour_button.config(text="NODE COLOUR TOTAL TRAFFIC \n TO NODE") 
-
         elif self.node_colour_type=="constant":
             self.node_colour_button.config(text="CONSTANT NODE COLOUR")
+        elif self.node_colour_type=="node_passengers":
+            self.node_colour_button.config(text="NODE COLOUR NUM PASSENGERS \n WAITING AT NODE")
 
     #command for the edge width button to switch between options for setting edge width 
     def edge_width_click(self):
@@ -899,6 +903,7 @@ class Display:
                 trips = np.sum(self.sim_network.origin_destination_trips,1) #extract number of trips ending at all nodes
             self.calculate_node_colours(trips,total)
 
+        #set node colour based on ideal distance to clicked node
         elif self.node_colour_type == "distance":
             if self.last_node_left_click_index == -1:
                 self.nodes_colour = [self.default_node_colour]*num_nodes    
@@ -910,6 +915,12 @@ class Display:
                 else:
                     times = self.sim_network.distance_to_all[:,self.last_node_left_click_index] #extract journey times going to this node
                 self.calculate_node_colours(times,max_time,mode='linear')
+        
+        #set node colour based on number of passengers waiting at the node
+        elif self.node_colour_type== "node_passengers":
+            passengers = self.sim_node_current_passengers
+            total = np.sum(self.sim_network.origin_destination_trips) #use the total number of trips, we need a constant total to prevent nodes shrinking as number of passengers grows
+            self.calculate_node_colours(passengers,total)
 
     #calculate_node_sizes based on provided information
     def calculate_node_sizes(self,nodes_quantity,total_quantity,mode='default'):
