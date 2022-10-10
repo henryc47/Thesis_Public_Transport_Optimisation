@@ -73,7 +73,7 @@ class Agent:
                     for j,node in enumerate(route_nodes_after):
                         node_index = node.id
                         distance_to_current_node_old_path = distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
-                        distance_to_current_node_new_path = minimum_distance + next_service_time + route_times_after[j] #how long to reach next node through evaluation node
+                        distance_to_current_node_new_path = minimum_distance + (next_service_time-current_time) + route_times_after[j] #how long to reach next node through evaluation node
                         #print('to reach ',node.name,' current best is ',distance_to_current_node_old_path,' new path is ',distance_to_current_node_new_path) #DEBUG
                         if distance_to_current_node_new_path<distance_to_current_node_old_path:
                             #if so, we have found a better path
@@ -92,28 +92,9 @@ class Agent:
                 
                 #mark the evaluated node as evaluated, it will not be evaluated again
                 evaluated_nodes[min_index] = np.inf
-                #DEBUG
-        # if self.start_node.name=='Chatswood':
-        #     if self.destination_node.name=='Berowra':
-        #         print("path_to_nodes")
-        #         print(path_to_nodes)
-        #         print("destination_path")
-        #         print(self.destination_path)
-        #         print("distance to nodes")
-        #         print(distance_to_nodes)
-        #         print("distance to final destinations")
-        #         print(distance_to_final_destination)
-        #         print("evaluated nodes")
-        #         print(evaluated_nodes)
-        #         print("expected distance to nodes")
-        #         print(expected_distance_to_nodes)
-        #         a = 1/0
 
         if distance_to_nodes[destination_node_index]==np.inf: #we have not found a path to our destination
             #hence the passenger should pop back out of existance
-            #if self.start_time<1100:
-            #    print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name) #DEBUG
-            #don't print the above warning outside of debugging as this is normal behaviour towards the end of the simulation
             return False #the passenger did not find a path to their destination
         else:
             return True #indicate we successfully found a path to their destination
