@@ -527,7 +527,7 @@ class Display:
         self.simulation_speed_update_button = tk.Button(master=self.simulation_viz,text='UPDATE SPEED',fg='black',bg='white',command=self.simulation_speed_update_click,width=20)
         self.simulation_speed_update_button.pack()
         #add controls for vehicle appearance rendering
-        self.vehicle_appearance_label = tk.Label(master=self.network_viz,text='VEHICLE APPEARANCE',fg='black',bg='white',width=20)
+        self.vehicle_appearance_label = tk.Label(master=self.simulation_viz,text='VEHICLE APPEARANCE',fg='black',bg='white',width=20)
         self.vehicle_appearance_label.pack()
         #add button to control vehicle colour
         self.vehicle_colour_button = tk.Button(master=self.simulation_viz,text="VEHICLE COLOUR BASED \n ON CROWDING",fg='black',bg='white',command=self.vehicle_colour_click,width=20,height=2)
