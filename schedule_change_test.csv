@@ -1,0 +1,5 @@
+Name,Gap,Offset,Finish,Schedule
+Northern Up,15,5,"1,200","Berowra,Mt Ku-Ring Gai,Mount Colah,Asquith,Hornsby"
+Northern Down,15,5,"1,200","Hornsby,Asquith,Mount Colah,Mt Ku-Ring Gai,Berowra"
+North Shore Up,15,0,"1,200","Hornsby,Waitara,Wahroonga,Warrawee,Turramurra,Pymble,Gordon,Killara,Lindfield,Roseville,Chatswood"
+North Shore Down,15,0,"1,200","Chatswood,Roseville,Lindfield,Killara,Gordon,Pymble,Turramurra,Warrawee,Wahroonga,Waitara,Hornsby"

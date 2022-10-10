@@ -350,7 +350,7 @@ class Network:
                     if alight_status == 1: #agent is alighting
                         agent = vehicle.agents.pop(j-num_removed) #remove them from the list of agents at the vehicle
                         num_removed = num_removed + 1
-                        stop_node.append(agent) #and add them to list of agents at the station
+                        stop_node.add_agent(agent) #and add them to list of agents at the station
                     elif alight_status == 2: #agent is alighting at their destination
                         agent = vehicle.agents.pop(j-num_removed)
                         num_removed = num_removed + 1

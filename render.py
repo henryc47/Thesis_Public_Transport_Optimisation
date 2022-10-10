@@ -116,7 +116,7 @@ class Display:
         #default file paths
         default_nodes = 'nodes_basic.csv'
         default_edges = 'edges_basic.csv'
-        default_schedule = 'schedule_basic.csv'
+        default_schedule = 'schedule_change_test.csv'
         #options
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
@@ -297,6 +297,10 @@ class Display:
 
     #setup the simulated network
     def setup_simulation_click(self):
+        #we need to draw the network before we can setup up the simulation
+        if self.first_render_flag==True:
+            self.draw_network_click()
+        
         time1 = time.time()
         self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,verbose=self.verbose)
         time2 = time.time()

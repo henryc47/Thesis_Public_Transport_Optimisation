@@ -60,7 +60,7 @@ class Agent:
 
                 else:
                     #otherwise calculate data about vehicle arrivials at nodes on the fly
-                    next_service_times,nodes_after,times_after,schedule_names = self.start_node.provide_next_services(start=False,data_time=current_time)
+                    next_service_times,nodes_after,times_after,schedule_names = self.network.nodes[min_index].provide_next_services(start=False,data_time=current_time)
 
                 #now it's time to calculate the path to other nodes
                 num_schedules = len(next_service_times)
@@ -92,10 +92,27 @@ class Agent:
                 
                 #mark the evaluated node as evaluated, it will not be evaluated again
                 evaluated_nodes[min_index] = np.inf
+                #DEBUG
+        # if self.start_node.name=='Chatswood':
+        #     if self.destination_node.name=='Berowra':
+        #         print("path_to_nodes")
+        #         print(path_to_nodes)
+        #         print("destination_path")
+        #         print(self.destination_path)
+        #         print("distance to nodes")
+        #         print(distance_to_nodes)
+        #         print("distance to final destinations")
+        #         print(distance_to_final_destination)
+        #         print("evaluated nodes")
+        #         print(evaluated_nodes)
+        #         print("expected distance to nodes")
+        #         print(expected_distance_to_nodes)
+        #         a = 1/0
 
         if distance_to_nodes[destination_node_index]==np.inf: #we have not found a path to our destination
             #hence the passenger should pop back out of existance
-            #print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name) #DEBUG
+            #if self.start_time<1100:
+            #    print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name) #DEBUG
             #don't print the above warning outside of debugging as this is normal behaviour towards the end of the simulation
             return False #the passenger did not find a path to their destination
         else:
