@@ -1,6 +1,7 @@
 #network.py
 #stores information about the physical network
 
+from asyncio.proactor_events import _ProactorBaseWritePipeTransport
 import pandas as pd #for importing data from csv files
 import warnings #for warnings
 import numpy as np #for large scale mathematical operations
@@ -45,11 +46,12 @@ class Node:
         (self.latitude,self.longitude) = extract_coordinates(coordinates)
         self.agents = [] #list of all agents at this stations
         self.schedule_names = [] #list of schedules stopping at this station
-        self.schedule_gaps = [] #time between each vehicle of this schedule
-        self.schedule_offsets = [] #list from when the schedule starts to when vehicle of this schedule start running
-        self.node_offset_time = [] #time between when a vehicle starts its journey along this schedule and when it reaches this node
+        # self.schedule_gaps = [] #time between each vehicle of this schedule
+        # self.schedule_offsets = [] #list from when the schedule starts to when vehicle of this schedule start running
+        # self.node_offset_time = [] #time between when a vehicle starts its journey along this schedule and when it reaches this node
+        self.schedule_times = [] #times at which vehicles arrive at this node
         self.nodes_after = [] #list of nodes after this node on a schedule
-        self.node_times_after = [] #time to reach nodes after tis node on the schedule
+        self.node_times_after = [] #time to reach nodes after the node on the schedule
         self.id = id #id of the node
 
     #add an edge which starts at the node
@@ -107,32 +109,43 @@ class Node:
 
 
     #add a schedule which stops at that station
-    def add_stopping_schedule(self,schedule_name,schedule_gap,schedule_offset,search_node_time,nodes_after,node_times_after):
-        #add all the info about the new stopping 
+    def add_stopping_schedule(self,schedule_name,schedule_times,node_offset,nodes_after,node_times_after):
         self.schedule_names.append(schedule_name)
-        self.schedule_gaps.append(schedule_gap)
-        self.schedule_offsets.append(schedule_offset)
-        self.node_offset_time.append(search_node_time)
+        schedule_times = [schedule_time+node_offset for schedule_time in schedule_times] #offset schedule times by time to reach the node
+        self.schedule_times.append(schedule_times)
         self.nodes_after.append(nodes_after)
         self.node_times_after.append(node_times_after)
 
-    #note calculating this dynamically is likely extremely inefficient
-    #long term we should move to calculating this in advance, but this should work as a temporary stopgap
-    #time to the next vehicle of each schedule of the node
+    #calculate the time till the next service of each schedule arrives at a node
     def time_till_next_vehicles(self,current_time):
         num_schedules = len(self.schedule_names)
         next_service_times = []
-        for i in range(num_schedules):
-            #extract data for that particular schedule
-            schedule_offset = self.schedule_offsets[i]
-            schedule_gap = self.schedule_gaps[i]
-            node_offset_time   = self.node_offset_time[i]
-            next_service_time = schedule_offset + node_offset_time #calculate the time of the first service along this route to reach the node
-            while next_service_time<current_time: #which the next service time is in the future
-                next_service_time = next_service_time + schedule_gap
-            #once we determined the next service time, calculate it relative to the current time and store it
-            next_service_times.append(next_service_time-current_time)
-        return next_service_times
+        for i in range(num_schedules): #go through all the schedules at a node
+            #calculate service data for each particular schedule
+            schedule_times = self.schedule_times[i]
+            num_future_services = len(schedule_times)
+            i = 0 #which service are we looking at
+            next_service_time = np.inf #default next service time is infinity
+            while i<num_future_services:
+                service_time = schedule_times[i]
+                if service_time>=current_time:
+                    next_service_time = service_time
+                    break #we have found a service after (or equal) to the present time, so need to search further
+                i = i + 1 #look at the next service
+            next_service_times.append(next_service_time)
+
+        return next_service_times            
+
+    #remove vehicles which have already arrived at the node
+    def remove_arrived_vehicles(self,current_time):
+        num_schedules = len(self.schedule_names)
+        for i in range(num_schedules): #go through all the schedules at a node
+            while len(self.schedule_times[i])>0:
+                if self.schedule_times[i][0]<=current_time: #if this service is in the past
+                    self.schedule_times[i].pop(0) #remove it from the list of services
+                else:
+                    break #as services of a schedule are in order, we only need to evaluate till we find a service in the future
+        
 
     #as previous function, but store the result in a internal variable
     #this is useful for operations at the current time
@@ -145,7 +158,7 @@ class Node:
             #we are providing service info at the same time as we are creating a passenger, so use precalculated times
             next_service_times = self.next_service_times
         else:
-            #otherwise calculate the time 
+            #otherwise calculate the time dynamically
             next_service_times = self.time_till_next_vehicles(data_time)
         #in either case, we must return the corresponding following nodes and their time to reach
         return next_service_times,self.nodes_after,self.node_times_after,self.schedule_names
@@ -229,6 +242,8 @@ class Network:
         self.agents = []
         self.agent_ids = []
         self.agent_id_counter = 0 #id of the next agent to be generated
+        self.num_failed_agents = 0 #number of agents created who could not find a path and hence were immediately unmade
+        self.num_successful_agents = 0 #number of agents who were created and found a path to their destination
 
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
@@ -262,10 +277,14 @@ class Network:
         #run through the all the schedules in the dispatch list
         num_schedules = len(self.schedules)
         for i in range(num_schedules):
-            if self.time == self.dispatch_schedule[i]:#if a schedule is too be dispatched at the current time
-                #a vehicle is to be dispatched, so create a vehicle here
-                self.create_vehicle(self.schedules[i])
-                self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
+            # if self.time == self.dispatch_schedule[i]:#if a schedule is too be dispatched at the current time
+            #     #a vehicle is to be dispatched, so create a vehicle here
+            #     self.create_vehicle(self.schedules[i])
+            #     self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
+            if len(self.dispatch_schedule2[i])>0: #if there are still schedules left to be dispatched
+                if self.time == self.dispatch_schedule2[i][0]: #a vehicle of this schedule is required to be created a the current time
+                    self.create_vehicle(self.schedules[i])
+                    self.dispatch_schedule2[i].pop(0) #remove the first element of the list as the vehicle has been created at the required time
 
     #create new passengers at stations, going between each node pair
     def create_all_passengers(self):
@@ -291,17 +310,29 @@ class Network:
     #create a single passenger
     def create_passenger(self,start_node,end_node,num_passengers):
         #create the passenger
-        self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
         new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self,num_passengers)
-        self.agents.append(new_agent) #create the new passengers and add to the list
-        self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
-        #assign the passenger to their starting station
-        start_node.add_agent(new_agent)
+        if new_agent.found_path == True:
+            #create the new passenger if they can find a path to their destination
+            self.agents.append(new_agent) #create the new passengers and add to the list
+            self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
+            self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
+            #assign the passenger to their starting station
+            start_node.add_agent(new_agent)
+            self.num_successful_agents = self.num_successful_agents + num_passengers
+        else:
+            #if we cannot find a path to their destination, uncreate the agent
+            self.num_failed_agents = self.num_failed_agents + num_passengers
+
+            
 
     #update when the next vehicle in each schedule will arrive at each node
     def update_nodes_next_vehicle(self):
         for node in self.nodes:
+            #determine when the next service of each schedule will arrive
             node.self_time_till_next_vehicles(self.time)
+            #remove services which have already arrived
+            node.remove_arrived_vehicles(self.time)
+
 
     #passengers alight from vehicles which have stopped
     def alight_passengers(self):
@@ -329,7 +360,6 @@ class Network:
                     elif alight_status == 0: #agent is not alighting
                         pass
 
-
     #passengers board vehicles which have stopped
     def board_passengers(self):
          #loop through all vehicles
@@ -350,8 +380,6 @@ class Network:
                     else:
                         #if agent is not boarding, we do not need to do anything
                         pass
-
-
 
     #update time by one unit        
     def update_time(self):
@@ -388,9 +416,11 @@ class Network:
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
             self.get_node_data_at_time() #extract node data at the current time
+        
+        print("number of passengers who could reach their destination ",self.num_successful_agents)
+        print("number of passengers who failed to reach their destination ",self.num_failed_agents)
         return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers #return relevant data from the simulation to the calling code
         
-
     #class to initialise class variables to store data about the vehicles as lists of lists
     def vehicle_logging_init(self):
         self.vehicle_latitudes = []
@@ -438,7 +468,8 @@ class Network:
     def create_schedules(self,schedule_csv):
         self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
         self.schedule_gaps = np.array(schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
-        self.schedule_offsets = np.array(schedule_csv["Offset"].to_list()) #extract the offset from the start of time (the hour) and when the first service occurs
+        self.schedule_offsets = np.array(schedule_csv["Offset"].to_list()) #extract the offset from the start of time (in minutes) and when the first service occurs
+        self.schedule_finish = np.array(schedule_csv["Finish"].to_list())
         schedule_texts = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
         self.schedules = [] #list to store the schedule objects
         num_schedules = len(self.schedule_names)
@@ -447,7 +478,22 @@ class Network:
             self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_texts[i])) #create a schedule object for each schedule
         
         #now that we have created the list of schedules, time to initalise the list of timestamps when services are to be dispatched
-        self.dispatch_schedule = np.zeros(num_schedules) + self.schedule_offsets        
+        self.dispatch_schedule = np.zeros(num_schedules) + self.schedule_offsets
+        #the dispatch schedule will be a list of lists of the times a vehicle of each schedule will be dispatched
+        self.dispatch_schedule2 = []
+        for i in range(num_schedules):
+            #create the dispatch schedule for each particular schedule
+            single_dispatch_schedule = []
+            service_time = self.schedule_offsets[i] #extract the starting time of a service
+            finish_time = self.schedule_finish[i] #and the last time at which a service can start
+            service_gap = self.schedule_gaps[i]
+            while service_time<=finish_time:
+                single_dispatch_schedule.append(service_time) #add the time of the service to the dispatch schedule
+                service_time = service_time + service_gap #calculate when the next service will occur
+            #once we have added all the departure times for this service, store it in the overall dispatch schedules
+            self.dispatch_schedule2.append(single_dispatch_schedule)
+
+
 
     #create a schedule object from a name and a text string
     def create_schedule(self,name,schedule_string):
@@ -490,8 +536,7 @@ class Network:
                 node_found,search_node_time,nodes_after,node_times_after = schedule.node_name_in_schedule(node_name)
                 if node_found == True:
                     #if we found the node in a schedule, add that schedule to the list of schedules stopping at that node
-                    self.nodes[i].add_stopping_schedule(self.schedule_names[j],self.schedule_gaps[j],self.schedule_offsets[j],search_node_time,nodes_after,node_times_after)
-
+                    self.nodes[i].add_stopping_schedule(self.schedule_names[j],self.dispatch_schedule2[j],search_node_time,nodes_after,node_times_after)
 
     #add an edge between specified start and end node            
     def add_edge(self,start_node,end_node,travel_time):
@@ -597,7 +642,6 @@ class Network:
             nodes_visited[min_index] =  np.inf #indicate we have visited the node
         
         return distance_to_nodes,paths #return the distance to all the nodes
-
 
     #find the distance to travel to all nodes from all nodes
     def find_distance_to_all(self):

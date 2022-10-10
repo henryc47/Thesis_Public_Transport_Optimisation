@@ -10,7 +10,7 @@ class Schedule:
         self.nodes = [] #list of destinations (reference to a node)
         self.node_names = [] #list of node names
         self.edges = [] #list of edges to reach each destination from previous location (reference to an edge)
-        self.schedule_times = [] #list of times when we will reach the nodes we are travelling toos
+        self.schedule_times = [] #list of times when we will reach the nodes we are travelling too
 
     #create a shallow copy of the object and all it's internal data-structures, however maintain same references to nodes and edges
     def __copy__(self):

@@ -14,15 +14,15 @@ class Agent:
         self.network = network #reference to the network object
         self.destination_path = [] #path of actions to the destination node
         self.number_passengers = number_passengers #number of passengers represented by this agent
-        self.pathfind()
-
+        self.found_path = self.pathfind()
+        
 
     #calculate a path from the start to the destination
     #store this path inside the agent
     def pathfind(self):
         #print('start ',self.start_node.name,' destination ',self.destination_node.name) #DEBUG
         #get info about vehicles arriving at the starting node
-        start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.start_node.provide_next_services(start=True)
+        start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.start_node.provide_next_services(data_time=self.start_time,start=True)
         #get index (id) of starting and ending nodes in the network structure
         start_node_index = self.start_node.id
         destination_node_index = self.destination_node.id
@@ -94,8 +94,12 @@ class Agent:
                 evaluated_nodes[min_index] = np.inf
 
         if distance_to_nodes[destination_node_index]==np.inf: #we have not found a path to our destination
-            print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name)
-
+            #hence the passenger should pop back out of existance
+            #print("WARNING: PASSENGER UNABLE TO FIND A PATH TO THEIR DESTINATION ",self.destination_node.name," FROM ",self.start_node.name) #DEBUG
+            #don't print the above warning outside of debugging as this is normal behaviour towards the end of the simulation
+            return False #the passenger did not find a path to their destination
+        else:
+            return True #indicate we successfully found a path to their destination
     #ask the agent if it wishes to board a vehicle of a particular schedule
     def board(self,schedule_name):
         #print('boarding' ,self.destination_path)

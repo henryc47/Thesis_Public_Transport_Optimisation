@@ -328,7 +328,7 @@ class Display:
             self.log_print(simulation_start_message)
             self.message_update(simulation_start_message)
             time1 = time.time()
-            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(240) #run the simulation and store the data
+            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(1260) #run the simulation and store the data
             self.setup_default_sim_current_values() #set default values for information about specific timesteps
             self.simulation_run_flag = True #simulation has been run and relevant values have been stored
             time2 = time.time()
