@@ -6,15 +6,15 @@ import copy as copy
 #route_step = [next_service_name,node.name]
 
 class Agent:
-    def __init__(self,start_node,destination_node,id,start_time,network,number_passengers=1):
+    def __init__(self,start_node,destination_node,id,start_time,network,number_passengers,path):
         self.start_node = start_node 
         self.destination_node = destination_node
         self.id = id
         self.start_time = start_time
         self.network = network #reference to the network object
-        self.destination_path = [] #path of actions to the destination node
+        self.destination_path = path #path of actions to the destination node
         self.number_passengers = number_passengers #number of passengers represented by this agent
-        self.found_path = self.pathfind()
+        #self.found_path = self.pathfind()
         
 
     #calculate a path from the start to the destination
@@ -87,8 +87,6 @@ class Agent:
                             route_to_new_node.append(node.name) #and when we need to get off that service
                             #print('new route ',route_to_new_node) #DEBUG
                             path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
-                           
-                            
                 
                 #mark the evaluated node as evaluated, it will not be evaluated again
                 evaluated_nodes[min_index] = np.inf

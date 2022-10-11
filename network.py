@@ -38,7 +38,7 @@ class Edge:
 #node class, represents a location between which passengers can travel
 #the node stores the names of all the nodes which start at it
 class Node:
-    def __init__(self,name,coordinates,id):
+    def __init__(self,name,coordinates,id,network):
         self.name = name
         self.edge_names = []#list of all edges starting at this node
         self.edge_destinations = []#and the destination of each node
@@ -53,6 +53,7 @@ class Node:
         self.nodes_after = [] #list of nodes after this node on a schedule
         self.node_times_after = [] #time to reach nodes after the node on the schedule
         self.id = id #id of the node
+        self.network = network #network we belong too
 
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -146,6 +147,68 @@ class Node:
                 else:
                     break #as services of a schedule are in order, we only need to evaluate till we find a service in the future
         
+    #find a path from this node to all nodes where num_passengers_to_node is greater than 0
+    def find_paths(self,num_passengers_to_node,start_time):
+         #get info about vehicles arriving at the starting node
+        start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.provide_next_services(data_time=start_time,start=True)
+        #OPTIMISATION#destination_nodes = num_passengers_to_node>0 #determine which nodes we need to calculate paths too (I.E those where passengers are actually going)     
+        #create an array to store the paths to all the other nodes
+        num_nodes_in_network = len(self.network.node_names)
+        distance_to_nodes = np.zeros(num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
+        evaluated_nodes = np.zeros(num_nodes_in_network)  #when a node is evaluated the value in this matrix is set to infinite, ensuring that node is never evaluated again
+        distance_to_nodes[self.id] = 0 #initial distance to reach the starting node is 0
+        path_to_nodes = [[] for _ in range(num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
+        while True: #loop till we meet an exit condition
+            expected_distance_to_nodes = distance_to_nodes + evaluated_nodes #set the distance to reach an already evaluated node to be infinite so we don't choose it as the minimal node
+            min_index = np.argmin(expected_distance_to_nodes) #get the index of the node with the lowest expected travel time, evaluate this next
+            minimum_distance = expected_distance_to_nodes[min_index] #extract the minimum distance from the starting node
+            if minimum_distance == np.inf:
+                break #break out of the loop, we have explored all the network we can reach
+            else:
+                #otherwise, explore paths from the minimal node
+                current_time = minimum_distance +  start_time#time at which we reach the node currently being evaluated
+                if min_index==self.id: #if at starting node, use precalcuated data about services
+                    #use precalculated data from the starting node
+                    next_service_times = start_next_service_times
+                    nodes_after = start_nodes_after
+                    times_after = start_node_times_after
+                    schedule_names = start_schedule_names
+                else: #otherwise, extract data about the evaluation node at the evaluation time
+                    next_service_times,nodes_after,times_after,schedule_names = self.network.nodes[min_index].provide_next_services(start=False,data_time=current_time)
+
+            #now it's time to calculate the path to other nodes
+            num_schedules = len(next_service_times)
+            for i in range(num_schedules):
+                #extract nodes and times after for this specific route            
+                next_service_time = next_service_times[i]
+                next_service_name = schedule_names[i]
+                route_nodes_after = nodes_after[i]
+                route_times_after = times_after[i]
+                for j,node in enumerate(route_nodes_after):
+                    node_index = node.id
+                    distance_to_current_node_old_path = distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
+                    distance_to_current_node_new_path = minimum_distance + (next_service_time-current_time) + route_times_after[j] #how long to reach next node through evaluation node
+                    if distance_to_current_node_new_path<distance_to_current_node_old_path: #we have a better path
+                        distance_to_nodes[node_index] = distance_to_current_node_new_path
+                        route_to_old_node = path_to_nodes[min_index] #extract the path to the evaluation node
+                        route_to_new_node = copy.copy(route_to_old_node) #path to the next node is path to the evaluation node + new step
+                        route_to_new_node.append(next_service_name) #store the next service we need to catch
+                        route_to_new_node.append(node.name) #and when we need to get off that service
+                        path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
+            
+            evaluated_nodes[min_index] = np.inf #mark the node as evaluated, it will not be evaluated again
+
+        #once we have found the paths to all nodes, return the paths and number of passengers
+        #note we return the number of passengers going to an unreachable station as zero, but we return the number of passengers who failed to reach their destination as well
+        num_nodes = len(self.network.nodes)
+        num_unreachable_passengers = 0 #keep track of the number of passengers who fail to reach their destination
+        for i in range(num_nodes):
+            if distance_to_nodes[i]==np.inf: #if the passenger cannot reach this node
+                num_unreachable_passengers = num_unreachable_passengers + num_passengers_to_node[i] #add them to the total of failed passengers
+                num_passengers_to_node[i] = 0 #do not create any passengers trying to reach this node
+        
+        return path_to_nodes,num_passengers_to_node,num_unreachable_passengers
+        
 
     #as previous function, but store the result in a internal variable
     #this is useful for operations at the current time
@@ -188,7 +251,7 @@ class Network:
         #and let's create the nodes
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
-            self.nodes.append(Node(self.node_names[i],node_positions[i],i)) #nodes id is it's position in the array
+            self.nodes.append(Node(self.node_names[i],node_positions[i],i,self)) #nodes id is it's position in the array
 
         #extract edge data
         self.edge_starts = edges_csv["Start"].to_list()
@@ -285,6 +348,42 @@ class Network:
                 if self.time == self.dispatch_schedule2[i][0]: #a vehicle of this schedule is required to be created a the current time
                     self.create_vehicle(self.schedules[i])
                     self.dispatch_schedule2[i].pop(0) #remove the first element of the list as the vehicle has been created at the required time
+
+    #create passengers with pathfinding done at the node level rather than the agent level
+    def create_all_passengers_pathfinding(self):
+        num_nodes = len(self.node_names)
+        for i in range(num_nodes): #go through all the nodes we are starting from
+            start_node = self.nodes[i] #extract a reference to the starting node
+            num_passengers_to_node = np.zeros(num_nodes)
+            #calculate the number of passengers going to each node
+            for j in range(num_nodes):
+                end_node = self.nodes[j] #extract a reference to that node
+                num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
+                num_passengers_per_min = num_passengers_pair/60 #we create passengers every minute, but statistics are per hour
+                #create the required number of passengers
+                int_num_passengers = int(num_passengers_per_min) #rounded-down number of passengers to create
+                chance_additional_passenger = num_passengers_per_min-int_num_passengers #chance of an additional passenger being created from the remainder
+                num_passengers_to_node[j] = int_num_passengers + random_true(chance_additional_passenger) #get the final number of passengers to be created
+            # now determine the path to all the nodes, the number of passengers travelling to each node and the number of passengers which failed to reach their destination
+            path_to_nodes,num_passengers_created,num_unreachable_passengers = start_node.find_paths(num_passengers_to_node,self.time)
+            self.num_successful_agents = self.num_successful_agents + np.sum(num_passengers_created) #record total successful pathfinding agents
+            self.num_failed_agents = self.num_failed_agents + num_unreachable_passengers  #record total failed pathfinding agents
+            # now lets create the actual passengers
+            for j in range(num_nodes): #go through all the nodes we are ending up at
+                num_passengers = num_passengers_created[j]
+                if num_passengers>0:
+                    end_node = self.nodes[j]
+                    path = copy.deepcopy(path_to_nodes[j])
+                    new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self,num_passengers,path) #create the new passenger
+                    self.agents.append(new_agent) #create the new passengers and add to the list
+                    self.agent_ids.append(self.agent_id_counter) #store the id of the newly created passenger
+                    self.agent_id_counter = self.agent_id_counter + 1 #increment the id counter
+                    #assign the passenger to their starting station
+                    start_node.add_agent(new_agent)
+            
+
+
+
 
     #create new passengers at stations, going between each node pair
     def create_all_passengers(self):
@@ -394,7 +493,7 @@ class Network:
             print('after alighting num passengers ', len(self.agents))
         #self.remove_arrived_vehicles()  #remove vehicles which have completed their path
         self.assign_vehicles_schedule() #create new vehicles at scheduled locations
-        self.create_all_passengers() #create new passengers
+        self.create_all_passengers_pathfinding() #create new passengers
         if self.verbose>=1:
             print('after creating new, new passengers ', len(self.agents))
         self.board_passengers() #passengers board vehicles
