@@ -15,6 +15,7 @@ class Agent:
         self.destination_path = path #path of actions to the destination node
         self.number_passengers = number_passengers #number of passengers represented by this agent
         #self.found_path = self.pathfind()
+        self.done = False #has the agent reached their destination yet
         
 
     #calculate a path from the start to the destination

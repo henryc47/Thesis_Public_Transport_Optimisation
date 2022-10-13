@@ -458,18 +458,19 @@ class Network:
                 #go through all the agents on the vehicle
                 for j,agent in enumerate(copy_vehicle_agents):
                     alight_status = agent.alight(stop_node.name)
-                    if alight_status == 1: #agent is alighting
-                        agent = vehicle.agents.pop(j-num_removed) #remove them from the list of agents at the vehicle
-                        num_removed = num_removed + 1
-                        stop_node.add_agent(agent) #and add them to list of agents at the station
-                    elif alight_status == 2: #agent is alighting at their destination
-                        agent = vehicle.agents.pop(j-num_removed)
-                        num_removed = num_removed + 1
-                        agent_index = self.agent_ids.index(agent.id) #get the index of the agent in the agent storage array
-                        del self.agents[agent_index] #delete the agent from the world, as they have reached their destination
-                        del self.agent_ids[agent_index] #and delete it's corresponding ID
-                    elif alight_status == 0: #agent is not alighting
+                    if agent.done==True: #we will not waste our time processing agents that have reached their destination
                         pass
+                    else:
+                        if alight_status == 1: #agent is alighting
+                            agent = vehicle.agents.pop(j-num_removed) #remove them from the list of agents at the vehicle
+                            num_removed = num_removed + 1
+                            stop_node.add_agent(agent) #and add them to list of agents at the station
+                        elif alight_status == 2: #agent is alighting at their destination
+                            agent = vehicle.agents.pop(j-num_removed)
+                            num_removed = num_removed + 1
+                            agent.done = True  #mark the agent as having achieved their goals
+                        elif alight_status == 0: #agent is not alighting
+                            pass
 
     #passengers board vehicles which have stopped
     def board_passengers(self):
@@ -519,13 +520,15 @@ class Network:
         self.times = []
         self.vehicle_logging_init() #initialise vehicle logging
         self.node_logging_init() #initialise node logging
-        #create lists to store latitudes,longitudes and names of vehicles over time as lists of lists 
+        #create lists to store latitudes,longitudes and names of vehicles over time as lists of lists
+        old_real_time = time.time() 
         while self.time<stop_time:#till we reach the specified time
             self.update_time() #run the simulation
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
             self.get_node_data_at_time() #extract node data at the current time
-            print("TIME ", self.time)
+            print("TIME ", self.time,'step took time ',time.time()-old_real_time)
+            old_real_time = time.time()
         print("number of passengers who could reach their destination ",self.num_successful_agents)
         print("number of passengers who failed to reach their destination ",self.num_failed_agents)
         return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers #return relevant data from the simulation to the calling code
