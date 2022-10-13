@@ -201,8 +201,9 @@ Domestic,International,2,Yes
 International,Wolli Creek,2,Yes
 Central,Domestic,7,Yes
 Wolli Creek,Arncliffe,2,Yes
-Wolli Creek,Rockdale,3,Yes
-Wolli Creek,Hurstville,7,Yes
+Wolli Creek,Rockdale,4,Yes
+Wolli Creek,Kogarah,5,Yes
+Wolli Creek,Hurstville,8,Yes
 Arncliffe,Banksia,2,Yes
 Banksia,Rockdale,2,Yes
 Rockdale,Kogarah,2,Yes
@@ -212,8 +213,10 @@ Carlton,Allawah,2,Yes
 Allawah,Hurstville,2,Yes
 Hurstville,Penshurst,2,Yes
 Hurstville,Sutherland,10,Yes
+Hurstville,Mortdale,3,Yes
 Penshurst,Mortdale,2,Yes
 Mortdale,Oatley,2,Yes
+Mortdale,Sutherland,8,Yes
 Oatley,Como,4,Yes
 Como,Janalli,2,Yes
 Janalli,Sutherland,3,Yes
@@ -229,3 +232,4 @@ Sutherland,Waterfall,10,Yes
 Loftus,Engadine,4,Yes
 Engadine,Heathcote,3,Yes
 Heathcote,Waterfall,5,Yes
+Lidcombe,Olympic Park,5,Yes

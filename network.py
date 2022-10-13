@@ -2,6 +2,7 @@
 #stores information about the physical network
 
 from asyncio.proactor_events import _ProactorBaseWritePipeTransport
+from audioop import reverse
 import pandas as pd #for importing data from csv files
 import warnings #for warnings
 import numpy as np #for large scale mathematical operations
@@ -11,6 +12,7 @@ import vehicle as vehicle
 import copy as copy #for shallow-copying schedules
 import random as rand
 import agent as a
+import math as m #for checking nans
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
@@ -237,7 +239,7 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_csv,edges_csv,schedule_csv,verbose=1):
+    def __init__(self,nodes_csv,edges_csv,schedule_csv,verbose=1,segment_csv='',schedule_type='simple'):
         time1 = time.time()
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
@@ -293,8 +295,12 @@ class Network:
         time2 = time.time()
         if self.verbose>=1:
             print('time to calculate traffic along each edge ',time2-time1, ' seconds')
-
+        #in simple scheduling, schedules are just lists of nodes
+        #in complex scheduling, schedules are made up of segments which are lists of nodes
+        #note complex schedules are converted to the same immediate format as simple schedules
         self.schedule_csv = schedule_csv
+        self.schedule_type = schedule_type #simple schedule type
+        self.segment_csv = segment_csv #segments used in the complex schedule
         #setup for vehicle simulations
         self.num_vehicles_started_here = np.zeros(num_nodes) #store the number of vehicles on the network which started from a particular node
         self.vehicles = [] #container to store vehicles in
@@ -503,7 +509,7 @@ class Network:
 
     #run for a certain amount of time
     def basic_sim(self,stop_time):
-        self.create_schedules(self.schedule_csv) #create the schedules
+        self.create_schedules() #create the schedules
         self.determine_which_nodes_have_schedule()
         self.time = 0
         self.times = []
@@ -563,13 +569,121 @@ class Network:
             current_node_passenger_counts.append(node.count_agents())
         self.node_passengers.append(current_node_passenger_counts)
                    
-    #create the schedule and functionality needed for scheduling
-    def create_schedules(self,schedule_csv):
-        self.schedule_names = schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
-        self.schedule_gaps = np.array(schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
-        self.schedule_offsets = np.array(schedule_csv["Offset"].to_list()) #extract the offset from the start of time (in minutes) and when the first service occurs
-        self.schedule_finish = np.array(schedule_csv["Finish"].to_list())
-        schedule_texts = schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
+    #call the correct schedule generation code based on the mode we are using
+    def create_schedules(self):
+        if self.schedule_type == "simple":
+            self.create_schedules_simple()
+        elif self.schedule_type == "complex":
+            self.create_schedules_complex()
+        else:
+            print(self.schedule_type,' is not a valid schedule type')
+
+    #create the schedule and functionality needed for scheduling using the complex method
+    #this method constructs the schedules out of "segments", which describe a relatively short route through a network
+    def create_schedules_complex(self):
+        #extract info about the segments
+        segment_routes = self.segment_csv["Route"].to_list() #extract the name of the route (start-end)
+        segment_modifiers = self.segment_csv["Modifier"].to_list() #extract the modifier of the route description(eg, fast, semi-fast)
+        segment_txt_schedules = self.segment_csv["Schedule"].to_list() #extract the actual schedule text of the segment
+        segment_reverse_txt_schedules = [] #reverse schedule txts
+        segment_names = [] #names of the segments
+        segment_reverse_names = [] #names of the reverse segments
+        num_segments = len(segment_routes) #how many segments are there
+        #calculate names and schedules of segments and their reverses
+        for i in range(num_segments):
+            segment_reverse_txt_schedules.append(reverse_schedule_list_txt(segment_txt_schedules[i])) #determine the reverse schedule
+            #determine names of segments
+            if segment_modifiers[i]=="":
+                new_segment_name = segment_routes[i]
+                reverse_segment_name = reverse_segment_route(segment_routes[i])
+            else:
+                new_segment_name = segment_routes[i]+ ' ' + segment_modifiers[i]
+                reverse_segment_name = reverse_segment_route(segment_routes[i]) + ' ' + segment_modifiers[i]
+            #add these to the list of segment names
+            segment_names.append(new_segment_name)            
+            segment_reverse_names.append(reverse_segment_name)
+        #merge regular and reverse list
+        segment_names = segment_names + segment_reverse_names
+        segment_txt_schedules = segment_txt_schedules + segment_reverse_txt_schedules
+        #extract node names from the segments
+        all_segment_nodes = []
+        for i in range(num_segments*2):
+            segment_nodes = extract_schedule_list_txt(segment_txt_schedules[i])
+            all_segment_nodes.append(segment_nodes)
+            print('segment_name ',segment_names[i]) #DEBUG
+            print('segment_txt_schedules ',segment_txt_schedules[i]) #DEBUG
+            print('segment nodes ',segment_nodes) #DEBUG
+            print('\n')
+            
+        
+        #now that we have determined the nodes making up a segment
+        #we need to combine the segments into schedules
+        self.schedule_names = self.schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
+        self.schedule_gaps = np.array(self.schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
+        self.schedule_offsets = np.array(self.schedule_csv["Offset"].to_list()) #extract the offset from the start of time (in minutes) and when the first service occurs
+        self.schedule_finish = np.array(self.schedule_csv["Finish"].to_list()) #time at which the last service of a schedule may depart
+        schedule_segments_texts = self.schedule_csv["Schedule Segments"].to_list() #extract the raw text that makes up a schedule as a list of segmentss   
+        self.schedules = [] #list to store schedule objects
+        schedule_strings = [] #list of schedule strings in the simple format
+        num_schedules = len(self.schedule_names)
+        for i in range(num_schedules):
+            #for each schedule, extract the segments of the schedule
+            segments_in_schedule = extract_schedule_list_txt(schedule_segments_texts[i]) #we can reuse this function as it extracts any comma seperated valued list
+            num_segments = len(segments_in_schedule)
+            print(segments_in_schedule)
+            print(num_segments)
+            first_segment = True
+            for j in range(num_segments):
+                try:
+                    segment_id =  segment_names.index(segments_in_schedule[j])
+                except:
+                    print('error cannot find ',segments_in_schedule[j], ' in list of segment names')
+                else:
+                    #if we can find the segment ids
+                    segment_nodes = copy.deepcopy(all_segment_nodes[segment_id]) #copy to prevent modifying originals
+                    if first_segment==True:
+                        #initial list of nodes is just the segment nodes
+                        nodes = segment_nodes
+                        first_segment = False #
+                    else:
+                        last_node_previous = nodes[-1] #get the last node of the previous segment
+                        first_node_new = segment_nodes[0] #get the first node of the new segment
+                        if first_node_new==last_node_previous: #this too must match otherwise the schedule is invalid
+                            nodes.pop() #remove last node from the previous segment
+                            nodes = nodes + segment_nodes #add the nodes from the new segment
+                        else:
+                            print('last node of schedule ',segments_in_schedule[j-1],' ',last_node_previous, ' does not match first node of schedule ',segments_in_schedule[j],' ',first_node_new)
+                            print('hence schedule ',self.schedule_names[i], ' is invalid')
+                            a = 1/0
+            #once we have extracted the list of nodes
+            schedule_string = make_schedule_string(nodes) #convert back into a schedule string
+            print(schedule_string)
+            schedule_strings.append(schedule_string) #and store
+        #now create the actual schedule objects
+        for i in range(num_schedules):
+            self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_strings[i])) #create a schedule object for each schedule
+        #create the dispatch schedule
+        self.dispatch_schedule2 = []
+        for i in range(num_schedules):
+            #create the dispatch schedule for each particular schedule
+            single_dispatch_schedule = []
+            service_time = self.schedule_offsets[i] #extract the starting time of a service
+            finish_time = self.schedule_finish[i] #and the last time at which a service can start
+            service_gap = self.schedule_gaps[i]
+            while service_time<=finish_time:
+                single_dispatch_schedule.append(service_time) #add the time of the service to the dispatch schedule
+                service_time = service_time + service_gap #calculate when the next service will occur
+            #once we have added all the departure times for this service, store it in the overall dispatch schedules
+            self.dispatch_schedule2.append(single_dispatch_schedule)
+
+
+    #create the schedule and functionality needed for scheduling using the simple method
+    def create_schedules_simple(self):
+        self.schedule_names = self.schedule_csv["Name"].to_list() #extract the name of schedules (a route that a vehicle will perform)
+        self.schedule_gaps = np.array(self.schedule_csv["Gap"].to_list()) #extract the gap in time (in minutes) between services along a particular route
+        self.schedule_offsets = np.array(self.schedule_csv["Offset"].to_list()) #extract the offset from the start of time (in minutes) and when the first service occurs
+        self.schedule_finish = np.array(self.schedule_csv["Finish"].to_list())
+        schedule_texts = self.schedule_csv["Schedule"].to_list() #extract the raw text that makes up a schedule
         self.schedules = [] #list to store the schedule objects
         num_schedules = len(self.schedule_names)
 
@@ -591,8 +705,6 @@ class Network:
                 service_time = service_time + service_gap #calculate when the next service will occur
             #once we have added all the departure times for this service, store it in the overall dispatch schedules
             self.dispatch_schedule2.append(single_dispatch_schedule)
-
-
 
     #create a schedule object from a name and a text string
     def create_schedule(self,name,schedule_string):
@@ -800,7 +912,7 @@ class Network:
             return index
         except ValueError:
             #handle case where starting name not in list of names
-            warnings.warn('node_name  ', node_name, 'is not in the list of node names in this network')
+            print('node_name  ', node_name, 'is not in the list of node names in this network')
             return -1 #return -1 to indicate error
 
     #get the index of an edge name in the list of edges
@@ -811,7 +923,7 @@ class Network:
             return index
         except ValueError:
             #handle case where starting name not in list of names
-            warnings.warn('edge_name  ', edge_name, 'is not in the list of edge names in this network')
+            print('edge_name  ', edge_name, 'is not in the list of edge names in this network')
             return -1 #return -1 to indicate error
 
     #get the time taken to traverse a node
@@ -1003,6 +1115,36 @@ def extract_schedule_list_txt(schedule_string):
     nodes.append("".join(new_node))
     return nodes
 
+#reverse the order of nodes in a schedule string
+def reverse_schedule_list_txt(schedule_string):
+    nodes = extract_schedule_list_txt(schedule_string) #get the list of node names
+    nodes.reverse() #reverse the list of nodes
+    #reconvert it back into a text string
+    schedule_string = ""
+    for node in nodes:
+        schedule_string = schedule_string + node + ','
+    #remove the trailing comma
+    schedule_string = schedule_string[:-1]
+    return schedule_string
+
+#reverse the route name of a segment
+def reverse_segment_route(route_name_string):
+    start_node_name = ""
+    end_node_name = ""
+    start_node_extracted = False
+    for letter in route_name_string:
+        if start_node_extracted==False:
+            if letter=='-':
+                start_node_extracted = True
+            else:
+                start_node_name = start_node_name + letter
+        else:
+            end_node_name = end_node_name + letter
+
+    reverse_name = end_node_name + "-" + start_node_name
+    return reverse_name
+
+
 #return true if random generated number is less than provided chance 
 #input chance is equal to the chance of the output being true
 def random_true(chance):
@@ -1011,3 +1153,11 @@ def random_true(chance):
         return True
     else:
         return False
+#turn a list of nodes into a schedule string
+def make_schedule_string(nodes):
+    schedule_string = ""
+    for node in nodes:
+        #add each node name to the schedule string
+        schedule_string = schedule_string + node + ','
+    schedule_string = schedule_string[:-1] #remove trailing comma
+    return schedule_string
