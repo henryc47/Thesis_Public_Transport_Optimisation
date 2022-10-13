@@ -313,6 +313,12 @@ class Network:
         self.agent_id_counter = 0 #id of the next agent to be generated
         self.num_failed_agents = 0 #number of agents created who could not find a path and hence were immediately unmade
         self.num_successful_agents = 0 #number of agents who were created and found a path to their destination
+        time1 = time.time()
+        self.create_schedules() #create the schedules
+        self.determine_which_nodes_have_schedule() #determine which nodes have which schedules
+        time2 = time.time()
+        if self.verbose>=1:
+            print('time to extract and generate schedules', time2-time1, 'seconds')
 
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
@@ -509,8 +515,6 @@ class Network:
 
     #run for a certain amount of time
     def basic_sim(self,stop_time):
-        self.create_schedules() #create the schedules
-        self.determine_which_nodes_have_schedule()
         self.time = 0
         self.times = []
         self.vehicle_logging_init() #initialise vehicle logging
@@ -521,7 +525,7 @@ class Network:
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
             self.get_node_data_at_time() #extract node data at the current time
-        
+            print("TIME ", self.time)
         print("number of passengers who could reach their destination ",self.num_successful_agents)
         print("number of passengers who failed to reach their destination ",self.num_failed_agents)
         return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers #return relevant data from the simulation to the calling code
@@ -610,11 +614,6 @@ class Network:
         for i in range(num_segments*2):
             segment_nodes = extract_schedule_list_txt(segment_txt_schedules[i])
             all_segment_nodes.append(segment_nodes)
-            print('segment_name ',segment_names[i]) #DEBUG
-            print('segment_txt_schedules ',segment_txt_schedules[i]) #DEBUG
-            print('segment nodes ',segment_nodes) #DEBUG
-            print('\n')
-            
         
         #now that we have determined the nodes making up a segment
         #we need to combine the segments into schedules
@@ -630,14 +629,12 @@ class Network:
             #for each schedule, extract the segments of the schedule
             segments_in_schedule = extract_schedule_list_txt(schedule_segments_texts[i]) #we can reuse this function as it extracts any comma seperated valued list
             num_segments = len(segments_in_schedule)
-            print(segments_in_schedule)
-            print(num_segments)
             first_segment = True
             for j in range(num_segments):
                 try:
                     segment_id =  segment_names.index(segments_in_schedule[j])
                 except:
-                    print('error cannot find ',segments_in_schedule[j], ' in list of segment names')
+                    print('error cannot find "',segments_in_schedule[j], '" in list of segment names')
                 else:
                     #if we can find the segment ids
                     segment_nodes = copy.deepcopy(all_segment_nodes[segment_id]) #copy to prevent modifying originals
@@ -652,12 +649,12 @@ class Network:
                             nodes.pop() #remove last node from the previous segment
                             nodes = nodes + segment_nodes #add the nodes from the new segment
                         else:
-                            print('last node of schedule ',segments_in_schedule[j-1],' ',last_node_previous, ' does not match first node of schedule ',segments_in_schedule[j],' ',first_node_new)
-                            print('hence schedule ',self.schedule_names[i], ' is invalid')
-                            a = 1/0
+                            #DEBUG
+                            print('last node of schedule "',segments_in_schedule[j-1],'" "',last_node_previous, '" does not match first node of schedule "',segments_in_schedule[j],'" "',first_node_new,'"')
+                            print('hence schedule "',self.schedule_names[i], '" is invalid')
+
             #once we have extracted the list of nodes
             schedule_string = make_schedule_string(nodes) #convert back into a schedule string
-            print(schedule_string)
             schedule_strings.append(schedule_string) #and store
         #now create the actual schedule objects
         for i in range(num_schedules):
