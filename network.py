@@ -53,6 +53,8 @@ class Node:
         self.node_times_after = [] #time to reach nodes after the node on the schedule
         self.id = id #id of the node
         self.network = network #network we belong too
+        #has the next vehicle of each schedule arriving at the node changed since we lasted found paths
+        self.next_vehicle_changed = True #starts at true so that we can use the reset variables process to initialise our variables
 
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -145,23 +147,33 @@ class Node:
                     self.schedule_times[i].pop(0) #remove it from the list of services
                 else:
                     break #as services of a schedule are in order, we only need to evaluate till we find a service in the future
-        
+    
+    #reset the internal info required for pathfinding 
+    def reset_pathfinding_info(self):
+        self.num_nodes_in_network = len(self.network.node_names)
+        self.distance_to_nodes = np.zeros(self.num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
+        self.evaluated_nodes = np.zeros(self.num_nodes_in_network)  #when a node is evaluated the value in this matrix is set to infinite, ensuring that node is never evaluated again
+        self.evaluated_nodes_tf = np.zeros(self.num_nodes_in_network) #as above, but evaluated nodes are set to 1
+        self.distance_to_nodes[self.id] = 0 #initial distance to reach the starting node is 0
+        #create an array to store the paths to all the other nodes       
+        self.path_to_nodes = [[] for _ in range(self.num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
+
+    def check_evaluated_destinations(self,destination_nodes):
+        num_evaluated_destinations = np.sum(np.logical_and(self.evaluated_nodes,destination_nodes)) 
+        return num_evaluated_destinations
+
     #find a path from this node to all nodes where num_passengers_to_node is greater than 0
     def find_paths(self,num_passengers_to_node,start_time):
+        if self.next_vehicle_changed == True:
+            self.reset_pathfinding_info() #restart the pathfinding process if the next vehicle arriving at this node has changed
+            self.next_vehicle_changed = False #compared to the present, next vehicle has not changed
          #get info about vehicles arriving at the starting node
         start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.provide_next_services(data_time=start_time,start=True)
         destination_nodes = num_passengers_to_node>0 #determine which nodes we need to calculate paths too (I.E those where passengers are actually going)
         num_destinations = np.sum(destination_nodes) #number of destinations we are trying to reach     
-        #create an array to store the paths to all the other nodes
-        num_nodes_in_network = len(self.network.node_names)
-        distance_to_nodes = np.zeros(num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
-        evaluated_nodes = np.zeros(num_nodes_in_network)  #when a node is evaluated the value in this matrix is set to infinite, ensuring that node is never evaluated again
-        evaluated_nodes_tf = np.zeros(num_nodes_in_network) #as above, but evaluated nodes are set to 1
-        distance_to_nodes[self.id] = 0 #initial distance to reach the starting node is 0
-        path_to_nodes = [[] for _ in range(num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
-        num_evaluated_destinations = 0 #number of nodes that have been evaluated
-        while True: #loop till we meet an exit condition
-            expected_distance_to_nodes = distance_to_nodes + evaluated_nodes #set the distance to reach an already evaluated node to be infinite so we don't choose it as the minimal node
+        num_evaluated_destinations = self.check_evaluated_destinations(destination_nodes) #get number of destinations already evaluated
+        while True: #loop till we meet an exit conditionx
+            expected_distance_to_nodes = self.distance_to_nodes + self.evaluated_nodes #set the distance to reach an already evaluated node to be infinite so we don't choose it as the minimal node
             min_index = np.argmin(expected_distance_to_nodes) #get the index of the node with the lowest expected travel time, evaluate this next
             minimum_distance = expected_distance_to_nodes[min_index] #extract the minimum distance from the starting node
             if minimum_distance == np.inf:
@@ -190,18 +202,18 @@ class Node:
                 route_times_after = times_after[i]
                 for j,node in enumerate(route_nodes_after):
                     node_index = node.id
-                    distance_to_current_node_old_path = distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
+                    distance_to_current_node_old_path = self.distance_to_nodes[node_index] #what is the current shortest path to the node we are looking at
                     distance_to_current_node_new_path = minimum_distance + (next_service_time-current_time) + route_times_after[j] #how long to reach next node through evaluation node
                     if distance_to_current_node_new_path<distance_to_current_node_old_path: #we have a better path
-                        distance_to_nodes[node_index] = distance_to_current_node_new_path
-                        route_to_old_node = path_to_nodes[min_index] #extract the path to the evaluation node
+                        self.distance_to_nodes[node_index] = distance_to_current_node_new_path
+                        route_to_old_node = self.path_to_nodes[min_index] #extract the path to the evaluation node
                         route_to_new_node = copy.copy(route_to_old_node) #path to the next node is path to the evaluation node + new step
                         route_to_new_node.append(next_service_name) #store the next service we need to catch
                         route_to_new_node.append(node.name) #and when we need to get off that service
-                        path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
+                        self.path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
             
-            evaluated_nodes[min_index] = np.inf #mark the node as evaluated, it will not be evaluated again
-            evaluated_nodes_tf[min_index] = 1 #as above
+            self.evaluated_nodes[min_index] = np.inf #mark the node as evaluated, it will not be evaluated again
+            self.evaluated_nodes_tf[min_index] = 1 #as above
             if destination_nodes[min_index]==True:
                 num_evaluated_destinations = num_evaluated_destinations+1
 
@@ -210,11 +222,11 @@ class Node:
         num_nodes = len(self.network.nodes)
         num_unreachable_passengers = 0 #keep track of the number of passengers who fail to reach their destination
         for i in range(num_nodes):
-            if distance_to_nodes[i]==np.inf: #if the passenger cannot reach this node
+            if self.distance_to_nodes[i]==np.inf: #if the passenger cannot reach this node
                 num_unreachable_passengers = num_unreachable_passengers + num_passengers_to_node[i] #add them to the total of failed passengers
                 num_passengers_to_node[i] = 0 #do not create any passengers trying to reach this node
     
-        return path_to_nodes,num_passengers_to_node,num_unreachable_passengers
+        return self.path_to_nodes,num_passengers_to_node,num_unreachable_passengers
         
 
     #as previous function, but store the result in a internal variable
@@ -452,6 +464,7 @@ class Network:
              #if a vehicle is at stop, passengers may alight
             if vehicle.state == 'at_stop':
                 stop_node = vehicle.previous_stop #where did the vehicle stop
+                #stop_node.next_vehicle_changed = True #the next vehicle stopping at this node will now be different (I don't think this is needed for alighting)
                 schedule_name = vehicle.schedule_name
                 copy_vehicle_agents = copy.copy(vehicle.agents) #create a shallow copy of the list of agents at the vehicle (agents will be the same, but references will be independent
                 num_removed = 0 #keep of number removed so we can pop the right agents
@@ -479,6 +492,7 @@ class Network:
             if vehicle.state == 'at_stop':
                 #if a vehicle is at stop, we need to board passengers
                 stop_node = vehicle.previous_stop #where did the vehicle stop
+                stop_node.next_vehicle_changed = True #the next vehicle stopping at this node will now be different
                 schedule_name = vehicle.schedule_name
                 copy_stop_node_agents = copy.copy(stop_node.agents) #create a shallow copy of the list of agents at the node (agents will be the same, but references will be independent)
                 num_removed = 0 #keep of number removed so we can pop the right agent
