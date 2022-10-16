@@ -55,6 +55,7 @@ class Node:
         self.network = network #network we belong too
         #has the next vehicle of each schedule arriving at the node changed since we lasted found paths
         self.next_vehicle_changed = True #starts at true so that we can use the reset variables process to initialise our variables
+        self.num_agents = 0
 
     #add an edge which starts at the node
     def add_edge(self,edge):
@@ -101,13 +102,21 @@ class Node:
     #add a agent to the station
     def add_agent(self,agent):
         self.agents.append(agent)
+        self.num_agents = self.num_agents + agent.number_passengers #the number of passengers has increased
+
+    #remove agent from the station
+    def remove_agent(self,id):
+        removed_agent = self.agents.pop(id)
+        self.num_agents = self.num_agents - removed_agent.number_passengers #the number of passengers has decreased
+        return removed_agent
+
 
     #count the number of agents at the station
     def count_agents(self):
-        num_agents = 0
-        for agent in self.agents:
-            num_agents = num_agents + agent.number_passengers
-        return num_agents 
+        #num_agents = 0
+        #for agent in self.agents:
+        #    num_agents = num_agents + agent.number_passengers
+        return self.num_agents 
 
 
     #add a schedule which stops at that station
@@ -475,11 +484,13 @@ class Network:
                         pass
                     else:
                         if alight_status == 1: #agent is alighting
-                            agent = vehicle.agents.pop(j-num_removed) #remove them from the list of agents at the vehicle
+                            agent = vehicle.alight_agent(j-num_removed) #remove them from the list of agents at the vehicle
+                           # print('type ',type(agent),' name',agent.name) #DEBUG
                             num_removed = num_removed + 1
                             stop_node.add_agent(agent) #and add them to list of agents at the station
                         elif alight_status == 2: #agent is alighting at their destination
-                            agent = vehicle.agents.pop(j-num_removed)
+                            agent = vehicle.alight_agent(j-num_removed) #remove them from the list of agents at the vehicle
+                          #  print('type ',type(agent),' name',agent.name) #DEBUG
                             num_removed = num_removed + 1
                             agent.done = True  #mark the agent as having achieved their goals
                         elif alight_status == 0: #agent is not alighting
@@ -500,8 +511,8 @@ class Network:
                     will_board = agent.board(schedule_name)
                     if will_board == True:
                         #if the agent is getting on the vehicles
-                        agent = stop_node.agents.pop(j-num_removed) #remove them from the list of agents at the node, making sure to account for the change in the array size due to removed agents
-                        vehicle.agents.append(agent) #and add them to the list of agents on the vehicle
+                        agent = stop_node.remove_agent(j-num_removed) #remove them from the list of agents at the node, making sure to account for the change in the array size due to removed agents
+                        vehicle.board_agent(agent) #have the agents board the vehicle
                         num_removed = num_removed + 1 #we have removed another agent
                     else:
                         #if agent is not boarding, we do not need to do anything

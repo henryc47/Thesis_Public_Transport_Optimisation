@@ -19,7 +19,19 @@ class Vehicle:
         self.final_destination = self.schedule.provide_final_destination() #get the final destination as well
         self.at_final_destination = False #mark if a vehicle has reached it's final destination, and will be deleted next update
         self.agents = [] #container to store agents in the vehicle
+        self.num_passengers = 0 #number of passengers in the vehicle
 
+    #have an agent try and board the vehicle
+    def board_agent(self,agent):
+        self.agents.append(agent) #add agents to the list of agents on the vehicle
+        self.num_passengers = self.num_passengers + agent.number_passengers #the number of passengers has increased
+
+    #have an agent try and leave the vehicle
+    def alight_agent(self,id):
+        removed_agent = self.agents.pop(id)
+        self.num_passengers = self.num_passengers - removed_agent.number_passengers #the number of passengers has decreased
+        return removed_agent
+    
 
     #move the vehicle around the network according to its schedule
     def update(self):
@@ -76,16 +88,13 @@ class Vehicle:
         
         return latitude,longitude
     
-    #store an agent in the vehicle
-    def add_agent(self,agent):
-        self.agents.append(agent)
 
     #count the number of agents in the vehicle
     def count_agents(self):
-        num_agents = 0
-        for agent in self.agents:
-            num_agents = num_agents + agent.number_passengers
-        return num_agents 
+        #num_agents = 0
+        #for agent in self.agents:
+        #    num_agents = num_agents + agent.number_passengers
+        return self.num_passengers
 
 
 
