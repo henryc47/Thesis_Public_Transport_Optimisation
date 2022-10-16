@@ -48,9 +48,6 @@ class Node:
         (self.latitude,self.longitude) = extract_coordinates(coordinates)
         self.agents = [] #list of all agents at this stations
         self.schedule_names = [] #list of schedules stopping at this station
-        # self.schedule_gaps = [] #time between each vehicle of this schedule
-        # self.schedule_offsets = [] #list from when the schedule starts to when vehicle of this schedule start running
-        # self.node_offset_time = [] #time between when a vehicle starts its journey along this schedule and when it reaches this node
         self.schedule_times = [] #times at which vehicles arrive at this node
         self.nodes_after = [] #list of nodes after this node on a schedule
         self.node_times_after = [] #time to reach nodes after the node on the schedule
@@ -163,28 +160,13 @@ class Node:
         distance_to_nodes[self.id] = 0 #initial distance to reach the starting node is 0
         path_to_nodes = [[] for _ in range(num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
         num_evaluated_destinations = 0 #number of nodes that have been evaluated
-
-        #DEBUG
-        #print('node ',self.name,' trying to reach ',num_destinations)
-        #print('destination nodes ',destination_nodes)
-        #print('\n')
-        #END DEBUG
         while True: #loop till we meet an exit condition
             expected_distance_to_nodes = distance_to_nodes + evaluated_nodes #set the distance to reach an already evaluated node to be infinite so we don't choose it as the minimal node
             min_index = np.argmin(expected_distance_to_nodes) #get the index of the node with the lowest expected travel time, evaluate this next
             minimum_distance = expected_distance_to_nodes[min_index] #extract the minimum distance from the starting node
-            #evaluated_destinations = np.logical_and(destination_nodes,evaluated_nodes_tf) #true if a node has been evaluated and a destination
-            # #DEBUG
-            # print('evaluated nodes',evaluated_nodes_tf)
-            # print('\n')
-            # print('evaluated destinations ',evaluated_destinations)
-            # print('\n')
-            # #END DEBUG
             if minimum_distance == np.inf:
-                #print('all nodes evaluated') #DEBUG
                 break #break out of the loop, we have explored all the network we can reach      
             elif num_evaluated_destinations==num_destinations:
-                #print('all destination nodes evaluated') #DEBUG
                 break #break out of the loop, we have already found paths to all the destinations we wish to reach
             else:
                 #otherwise, explore paths from the minimal node
@@ -223,11 +205,6 @@ class Node:
             if destination_nodes[min_index]==True:
                 num_evaluated_destinations = num_evaluated_destinations+1
 
-        #DEBUG
-        #print('nodes evaluated ',np.sum(evaluated_nodes_tf))
-        #print('num evaluated destinations ',np.sum(evaluated_destinations))
-        #print('\n')
-        #END DEBUG
         #once we have found the paths to all nodes, return the paths and number of passengers
         #note we return the number of passengers going to an unreachable station as zero, but we return the number of passengers who failed to reach their destination as well
         num_nodes = len(self.network.nodes)
@@ -236,8 +213,7 @@ class Node:
             if distance_to_nodes[i]==np.inf: #if the passenger cannot reach this node
                 num_unreachable_passengers = num_unreachable_passengers + num_passengers_to_node[i] #add them to the total of failed passengers
                 num_passengers_to_node[i] = 0 #do not create any passengers trying to reach this node
-        
-        #b = 1/0
+    
         return path_to_nodes,num_passengers_to_node,num_unreachable_passengers
         
 
@@ -381,10 +357,6 @@ class Network:
         #run through the all the schedules in the dispatch list
         num_schedules = len(self.schedules)
         for i in range(num_schedules):
-            # if self.time == self.dispatch_schedule[i]:#if a schedule is too be dispatched at the current time
-            #     #a vehicle is to be dispatched, so create a vehicle here
-            #     self.create_vehicle(self.schedules[i])
-            #     self.dispatch_schedule[i] = self.dispatch_schedule[i] + self.schedule_gaps[i] #next service on this route will dispatch after a period of time
             if len(self.dispatch_schedule2[i])>0: #if there are still schedules left to be dispatched
                 if self.time == self.dispatch_schedule2[i][0]: #a vehicle of this schedule is required to be created a the current time
                     self.create_vehicle(self.schedules[i])
@@ -565,7 +537,6 @@ class Network:
     def vehicle_logging_init(self):
         self.vehicle_latitudes = []
         self.vehicle_longitudes = []
-        #self.vehicle_names = ['placeholder'] # dealing with Whacko47
         self.store_vehicle_names = []
         self.vehicle_passengers = []
 
@@ -580,7 +551,6 @@ class Network:
         current_vehicle_names = []
         current_vehicle_passenger_counts = []
         for vehicle in self.vehicles:
-            #print('single')
             #extract and store the data at the current time in a list
             latitude,longitude = vehicle.get_coordinates() #get the latitude, longitude and direction of the vehicle
             current_vehicle_latitudes.append(latitude)
@@ -827,7 +797,7 @@ class Network:
                     destination_index = self.node_names.index(edge_destinations[i])
                 except ValueError:
                     #handle case where destination name not in list of names
-                    warnings.warn('destination name  ', edge_destinations[i], 'is not in the list of node names in this network')
+                    print('WARNING destination name  ', edge_destinations[i], 'is not in the list of node names in this network')
                     continue #skip remaining computation steps
 
                 new_distance = min_distance + edge_times[i] #calculate distance to reach destination through the current node
@@ -845,7 +815,7 @@ class Network:
             start_index = self.node_names.index(start_node_name)
         except ValueError:
             #handle case where starting name not in list of names
-            warnings.warn('start_node_name  ', start_node_name, 'is not in the list of node names in this network')
+            print('WARNING start_node_name  ', start_node_name, 'is not in the list of node names in this network')
             return False #return false to indicate error
         #if there was not an error, continue
         num_nodes = len(self.node_names)
@@ -867,7 +837,7 @@ class Network:
                     destination_index = self.node_names.index(edge_destinations[i])
                 except ValueError:
                     #handle case where destination name not in list of names
-                    warnings.warn('destination name', edge_destinations[i], 'is not in the list of node names in this network')
+                    print('WARNING destination name', edge_destinations[i], 'is not in the list of node names in this network')
                     continue #skip remaining computation steps
 
                 new_distance = min_distance + edge_times[i] #calculate distance to reach destination through the current node
