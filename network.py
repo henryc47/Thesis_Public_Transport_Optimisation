@@ -153,19 +153,39 @@ class Node:
     def find_paths(self,num_passengers_to_node,start_time):
          #get info about vehicles arriving at the starting node
         start_next_service_times,start_nodes_after,start_node_times_after,start_schedule_names = self.provide_next_services(data_time=start_time,start=True)
-        #OPTIMISATION#destination_nodes = num_passengers_to_node>0 #determine which nodes we need to calculate paths too (I.E those where passengers are actually going)     
+        destination_nodes = num_passengers_to_node>0 #determine which nodes we need to calculate paths too (I.E those where passengers are actually going)
+        num_destinations = np.sum(destination_nodes) #number of destinations we are trying to reach     
         #create an array to store the paths to all the other nodes
         num_nodes_in_network = len(self.network.node_names)
         distance_to_nodes = np.zeros(num_nodes_in_network) + np.inf #initial distance to reach all other nodes will be infinite
         evaluated_nodes = np.zeros(num_nodes_in_network)  #when a node is evaluated the value in this matrix is set to infinite, ensuring that node is never evaluated again
+        evaluated_nodes_tf = np.zeros(num_nodes_in_network) #as above, but evaluated nodes are set to 1
         distance_to_nodes[self.id] = 0 #initial distance to reach the starting node is 0
         path_to_nodes = [[] for _ in range(num_nodes_in_network)] #create an empty nested list of the required length to store paths to nodes
+        num_evaluated_destinations = 0 #number of nodes that have been evaluated
+
+        #DEBUG
+        #print('node ',self.name,' trying to reach ',num_destinations)
+        #print('destination nodes ',destination_nodes)
+        #print('\n')
+        #END DEBUG
         while True: #loop till we meet an exit condition
             expected_distance_to_nodes = distance_to_nodes + evaluated_nodes #set the distance to reach an already evaluated node to be infinite so we don't choose it as the minimal node
             min_index = np.argmin(expected_distance_to_nodes) #get the index of the node with the lowest expected travel time, evaluate this next
             minimum_distance = expected_distance_to_nodes[min_index] #extract the minimum distance from the starting node
+            #evaluated_destinations = np.logical_and(destination_nodes,evaluated_nodes_tf) #true if a node has been evaluated and a destination
+            # #DEBUG
+            # print('evaluated nodes',evaluated_nodes_tf)
+            # print('\n')
+            # print('evaluated destinations ',evaluated_destinations)
+            # print('\n')
+            # #END DEBUG
             if minimum_distance == np.inf:
-                break #break out of the loop, we have explored all the network we can reach
+                #print('all nodes evaluated') #DEBUG
+                break #break out of the loop, we have explored all the network we can reach      
+            elif num_evaluated_destinations==num_destinations:
+                #print('all destination nodes evaluated') #DEBUG
+                break #break out of the loop, we have already found paths to all the destinations we wish to reach
             else:
                 #otherwise, explore paths from the minimal node
                 current_time = minimum_distance +  start_time#time at which we reach the node currently being evaluated
@@ -199,7 +219,15 @@ class Node:
                         path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
             
             evaluated_nodes[min_index] = np.inf #mark the node as evaluated, it will not be evaluated again
+            evaluated_nodes_tf[min_index] = 1 #as above
+            if destination_nodes[min_index]==True:
+                num_evaluated_destinations = num_evaluated_destinations+1
 
+        #DEBUG
+        #print('nodes evaluated ',np.sum(evaluated_nodes_tf))
+        #print('num evaluated destinations ',np.sum(evaluated_destinations))
+        #print('\n')
+        #END DEBUG
         #once we have found the paths to all nodes, return the paths and number of passengers
         #note we return the number of passengers going to an unreachable station as zero, but we return the number of passengers who failed to reach their destination as well
         num_nodes = len(self.network.nodes)
@@ -209,6 +237,7 @@ class Node:
                 num_unreachable_passengers = num_unreachable_passengers + num_passengers_to_node[i] #add them to the total of failed passengers
                 num_passengers_to_node[i] = 0 #do not create any passengers trying to reach this node
         
+        #b = 1/0
         return path_to_nodes,num_passengers_to_node,num_unreachable_passengers
         
 
@@ -393,7 +422,6 @@ class Network:
                     #assign the passenger to their starting station
                     start_node.add_agent(new_agent)
             
-
 
 
 
@@ -878,7 +906,6 @@ class Network:
             path_arrays.append(new_paths)
 
         #and merge them into a numpy array
-        
         self.distance_to_all = np.stack(distance_arrays)
         self.paths_to_all = path_arrays
         return self.distance_to_all
