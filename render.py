@@ -7,9 +7,9 @@ import pandas as pd
 import numpy as np 
 import network as n
 import warnings as warnings
-from os import path#for checking if file exists
 import cProfile as profile
 import pstats
+from os import path
 from pstats import SortKey
 
 
@@ -74,7 +74,6 @@ class Display:
         self.last_node_right_click_index = -1 #index of last node right-clicked, -1 indicates that no nodes have been right clicked yet
         self.path_edge_arrows = True #will arrows be drawn on plotted routes between nodes, indicating direction of travel
 
-
     #setup the window object, in which all of our GUI will be contained
     def setup_window(self): 
         window = tk.Tk()
@@ -107,17 +106,17 @@ class Display:
         self.current_zoom_offset_x = 0 #how much is the display x origin offset from the true x origin
         self.current_zoom_offset_y = 0 #how much is the display y origin offset from the true y origin
         
-
     #setup the main control options
     def setup_main_controls(self):
         #create the control panel
         self.main_controls = tk.Frame(master=self.window)
         self.main_controls.pack(side = tk.LEFT,anchor=tk.N)
         #default file paths
-        default_nodes = 'nodes_large.csv'
-        default_edges = 'edges_large.csv'
-        default_schedule = 'schedule_simple.csv'
-        default_segment_schedule = 'schedule_segments.csv'
+        default_nodes = 'nodes_sydney.csv'
+        default_edges = 'edges_sydney.csv'
+        default_schedule = 'schedule_sydney.csv'
+        default_segment_schedule = 'schedule_segments_sydney.csv'
+        default_parameters = 'parameters_sydney.csv'
         #options
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
@@ -149,6 +148,12 @@ class Display:
         self.schedule_segment_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20) 
         self.schedule_segment_file_path_entry.insert(0,default_segment_schedule)
         self.schedule_segment_file_path_entry.pack()
+        #csv file for importing the network parameters
+        self.parameters_file_path_label = tk.Label(master=self.main_controls,text='PARAMETERS FILE PATH',fg='black',bg='white',width=20)
+        self.parameters_file_path_label.pack()
+        self.parameters_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
+        self.parameters_file_path_entry.insert(0,default_parameters)
+        self.parameters_file_path_entry.pack()       
         #control for importing files 
         self.import_files_button = tk.Button(master=self.main_controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
         self.import_files_button.pack()
@@ -183,7 +188,6 @@ class Display:
         self.setup_network_viz_tools()
         self.setup_simulation_viz_tools()
         #they are created hidden, and will be unhidden later
-
 
     #CLICK FUNCTIONS FOR MAIN CONTROL
 
@@ -458,8 +462,6 @@ class Display:
             #change the stored index to reflect the new position in the list of current vehicles
             self.index_vehicle_text_popup = new_index
 
-
-
     def extract_current_vehicles_info(self,index):
         #extract the info for the current time (given by index)
         self.sim_vehicles_current_names = self.sim_vehicle_names[index]
@@ -485,7 +487,6 @@ class Display:
         if self.simulation_setup_flag == True:#also update the logging level in the simulation if it exists
             self.log_print('SIMULATION LOG LEVEL UPDATED TO '+ str(self.verbose),2)
             self.sim_network.verbose = self.verbose
-
 
     #NETWORK VIZ TOOLS
     #tools for exploring aspects of the simulated network which do not depend on actual simulation
@@ -605,7 +606,7 @@ class Display:
             updates_per_second_text = 'UPDATES/SECOND = ' + str(new_updates_per_second)
             self.simulation_speed_label.config(text=updates_per_second_text)
 
-        
+       
     #control whether the simulation visulisation is paused or playing
     def pause_play_button_click(self):
         if self.paused == True:
@@ -1392,7 +1393,6 @@ class Display:
             self.text_id_vehicle_upper = self.canvas.create_text(x,y-30,text=vehicle_name,state=tk.DISABLED)
             self.text_id_vehicle_lower = self.canvas.create_text(x,y-15,text=lower_text,state=tk.DISABLED)
 
-
     #derender edge text created by hovering
     def derender_hover_edge_text(self):
         if self.text_id_line_end != -1: #if such text exists
@@ -1607,8 +1607,6 @@ class Display:
         self.name_vehicle_text_popup = -1
         #placeholder for future functionality
         
-
-
     #GENERAL CANVAS EVENT HANDLERS (FOR SCROLLING and ZOOMING IN/OUT)
     #zoom in/out
     def zoom_canvas(self,event):

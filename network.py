@@ -1,9 +1,6 @@
 #network.py
 #stores information about the physical network
 
-from asyncio.proactor_events import _ProactorBaseWritePipeTransport
-from audioop import reverse
-import pandas as pd #for importing data from csv files
 import warnings #for warnings
 import numpy as np #for large scale mathematical operations
 import time as time #for benchmarking
@@ -12,7 +9,6 @@ import vehicle as vehicle
 import copy as copy #for shallow-copying schedules
 import random as rand
 import agent as a
-import math as m #for checking nans
 
 #edge class, represents a (one-way) link between two nodes
 #at the moment, only relevant property is travel time taken, but more properties may be added later
