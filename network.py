@@ -118,8 +118,8 @@ class Node:
     #add a schedule which stops at that station
     def add_stopping_schedule(self,schedule_name,schedule_times,node_offset,nodes_after,node_times_after):
         self.schedule_names.append(schedule_name)
-        schedule_times = [schedule_time+node_offset for schedule_time in schedule_times] #offset schedule times by time to reach the node
-        self.schedule_times.append(schedule_times)
+        schedule_times_mod = [schedule_time+node_offset for schedule_time in schedule_times] #offset schedule times by time to reach the node
+        self.schedule_times.append(schedule_times_mod)
         self.nodes_after.append(nodes_after)
         self.node_times_after.append(node_times_after)
 
@@ -131,14 +131,14 @@ class Node:
             #calculate service data for each particular schedule
             schedule_times = self.schedule_times[i]
             num_future_services = len(schedule_times)
-            i = 0 #which service are we looking at
+            j = 0 #which service are we looking at
             next_service_time = np.inf #default next service time is infinity
-            while i<num_future_services:
-                service_time = schedule_times[i]
+            while j<num_future_services:
+                service_time = schedule_times[j]
                 if service_time>=current_time:
                     next_service_time = service_time
                     break #we have found a service after (or equal) to the present time, so need to search further
-                i = i + 1 #look at the next service
+                j = j + 1 #look at the next service
             next_service_times.append(next_service_time)
 
         return next_service_times            
@@ -197,6 +197,7 @@ class Node:
                 else: #otherwise, extract data about the evaluation node at the evaluation time
                     next_service_times,nodes_after,times_after,schedule_names = self.network.nodes[min_index].provide_next_services(start=False,data_time=current_time)
 
+
             #now it's time to calculate the path to other nodes
             num_schedules = len(next_service_times)
             for i in range(num_schedules):
@@ -218,7 +219,7 @@ class Node:
                         self.path_to_nodes[node_index] = route_to_new_node #store this in the list of all paths
             
             self.evaluated_nodes[min_index] = np.inf #mark the node as evaluated, it will not be evaluated again
-            self.evaluated_nodes_tf[min_index] = 1 #as above
+            self.evaluated_nodes_tf[min_index] = True #as above
             if destination_nodes[min_index]==True:
                 num_evaluated_destinations = num_evaluated_destinations+1
 
@@ -295,16 +296,12 @@ class Network:
 
         #extract parameter data
         self.vehicle_max_seated = parameters_csv["Vehicle Max Seated"].to_list()[0] #maximum number who can sit inside a vehicle
-        self.vehicle_max_standing = parameters_csv["Vehicle Max Standing"].to_list()[0] #maximum number who can fit inside a vehicle seated + standing
-        self.vehicle_cost = parameters_csv["Vehicle Cost"].to_list()[0] #marginal cost of running a vehicle, $/hour
-        self.agent_cost_seated = parameters_csv["Agent Cost Seated"].to_list()[0] #marginal value of agents time, $/seated
-        self.agent_cost_standing = parameters_csv["Agent Cost Standing"].to_list()[0] #marginal value of agents time, higher because standing is unpleasant $/hr
-        self.agent_cost_waiting = parameters_csv["Agent Cost Waiting"].to_list()[0] #marginal value of agents time, higher because waiting is unpleasant $/hr
+        self.vehicle_max_standing = parameters_csv["Vehicle Max Standing"].to_list()[0] #maximum number who can fit inside a vehicle seated + standing     
         self.windup_time = parameters_csv["Windup Time"].to_list()[0] #time between when simulation is setup and when passengers are generated at max rate, simulates start of day
         self.winddown_time = parameters_csv["Winddown Time"].to_list()[0] #time before passenger stop being generated when passenger generation starts being reduce, simulates end of the day
-        self.final_time = parameters_csv["Winddown Time"].to_list()[0] #time when passengers stop being generated, no more vehicles will leave after this point
-        self.unfinished_penalty = parameters_csv["Unfinished Penalty"].to_list()[0] #penalty if passengers are unable to reach their destination, based roughly on cost of late night taxi ride  
-        self.passenger_time_multipler = 0 #multiplier on how many passengers are generated per hour
+        self.final_time = parameters_csv["Final Time"].to_list()[0] #time when passengers + vehicles stop being generated
+        self.stop_simulation_time = parameters_csv["Stop Simulation"].to_list()[0]
+        self.passenger_time_multipler = float(0) #multiplier on how many passengers are generated per hour, converted to a float as it refuses to become an integer later
         #allocate passengers 
         self.node_passengers = (nodes_csv["Hourly Passengers"]).to_list()#passengers per hour for each station
         time2 = time.time()
@@ -358,12 +355,15 @@ class Network:
         if self.time>windup_time_end and self.time<winddown_time_start:
             self.passenger_time_multipler = 1 #network is fully operational
         elif self.time<windup_time_end:
-            self.passenger_time_multiplier = self.time/windup_time_end
+            temp = float(self.time)/float(windup_time_end)
+            self.passenger_time_multipler = temp
         elif self.time>winddown_time_start and self.time<self.final_time:
             time_till_end = self.final_time-self.time
-            self.passenger_time_multiplier = time_till_end/self.winddown_time
+            temp = float(time_till_end)/float(self.winddown_time)
+            self.passenger_time_multipler = temp
         elif self.time>=self.final_time:
-            self.passenger_time_multiplier = 0
+            self.passenger_time_multipler = 0
+        
         
 
     #create a new vehicle and add it to the network
@@ -371,6 +371,8 @@ class Network:
         vehicle_name = str(self.time) + " " + schedule.provide_name() #calculate the vehicles name
         #produce a shallow copy of the schedule to provide to the vehicle, note we use a class defined implemention of shallow-copying
         copy_schedule = copy.copy(schedule) #copy the schedule object, but maintain keep references to node/edges identical
+        if self.verbose>=1:
+            print('schedule destinations ',copy_schedule.nodes)
         junk,start_node = copy_schedule.provide_next_destination() #extract the first destination of the schedule
         start_node_index = start_node.id
         self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
@@ -387,10 +389,10 @@ class Network:
                 vehicle.verbose_stop()
             elif self.verbose>=2:
                 vehicle.verbose_position()
-            not_reached_destination = vehicle.update()
+            not_reached_destination = vehicle.update()  
             if not_reached_destination == False:
                 if self.verbose>=1:
-                    print('a vehicle ', vehicle.name, ' has reached the end of its path ', vehicle.next_destination.name ," at time ", self.time)
+                    print('a vehicle ', vehicle.name, ' has reached the end of its path at time ', self.time)
                 del self.vehicles[count] #remove the vehicle when it has reached it's destination
 
     #create vehicles at nodes as needed by the schedule
@@ -422,6 +424,7 @@ class Network:
             path_to_nodes,num_passengers_created,num_unreachable_passengers = start_node.find_paths(num_passengers_to_node,self.time)
             self.num_successful_agents = self.num_successful_agents + np.sum(num_passengers_created) #record total successful pathfinding agents
             self.num_failed_agents = self.num_failed_agents + num_unreachable_passengers  #record total failed pathfinding agents
+
             # now lets create the actual passengers
             for j in range(num_nodes): #go through all the nodes we are ending up at
                 num_passengers = num_passengers_created[j]
@@ -435,9 +438,6 @@ class Network:
                     #assign the passenger to their starting station
                     start_node.add_agent(new_agent)
             
-
-
-
     #create new passengers at stations, going between each node pair
     def create_all_passengers(self):
         num_nodes = len(self.node_names)
@@ -561,14 +561,15 @@ class Network:
         self.time = self.time + 1 #increment time
 
     #run for a certain amount of time
-    def basic_sim(self,stop_time):
+    def basic_sim(self):
         self.time = 0
         self.times = []
+        final_time = self.stop_simulation_time #determine when the simulation will end
         self.vehicle_logging_init() #initialise vehicle logging
         self.node_logging_init() #initialise node logging
         #create lists to store latitudes,longitudes and names of vehicles over time as lists of lists
         old_real_time = time.time() 
-        while self.time<stop_time:#till we reach the specified time
+        while self.time<final_time:#till we reach the specified time
             self.update_time() #run the simulation
             self.times.append(self.time) #store the current time
             self.get_vehicle_data_at_time() #extract vehicle data at the current time
@@ -577,7 +578,7 @@ class Network:
             old_real_time = time.time()
         print("number of passengers who could reach their destination ",self.num_successful_agents)
         print("number of passengers who failed to reach their destination ",self.num_failed_agents)
-        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers #return relevant data from the simulation to the calling code
+        return self.times,self.vehicle_latitudes,self.vehicle_longitudes,self.store_vehicle_names,self.vehicle_passengers,self.node_passengers,self.num_failed_agents,self.num_successful_agents,final_time #return relevant data from the simulation to the calling code
         
     #class to initialise class variables to store data about the vehicles as lists of lists
     def vehicle_logging_init(self):

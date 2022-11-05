@@ -12,6 +12,7 @@ class Vehicle:
         self.schedule_name = self.schedule.name
         self.name = name
         self.state = 'at_stop' #vehicle states are 'at_stop' and 'moving'
+        self.state_new = True #newly created, will not stop if final_destination = current destination to allow the city circle to function
         self.schedule.offset_schedule_times(start_time)#adjust the schedule to reflect the time we started
         self.number_passengers = 0 #current number of passengers aboard the vehicle
         check,self.previous_stop = self.schedule.provide_next_destination() #get the starting destination which will be stored as the previous stop
@@ -38,9 +39,10 @@ class Vehicle:
         if self.state == 'at_stop': #if the vehicle was at a stop
             #add some code to disembark passengers
             #add some code to pick up passengers
-            if self.final_destination == self.previous_stop: #if vehicle has reached it's destination                
+            if self.final_destination == self.previous_stop and self.state_new == False: #if vehicle has reached it's destination and not newly created                
                 return False #return false to indicate it should be deleted
             #if vehicle has not reached it's final destination
+            self.state_new=False
             check,self.next_destination,self.next_edge = self.schedule.provide_next_destination() #extract next destination and how to get there
             self.edge_length = self.next_edge.provide_travel_time() #store the length of the next edge
             if self.edge_length == 1: #if edge takes only 1 time unit to traverse
@@ -67,7 +69,11 @@ class Vehicle:
 
     #print where the vehicle is
     def verbose_position(self):
-        print('vehicle ',self.name,' is ',self.state, 'previous stop is ',self.previous_stop.name,' next stop is ',self.next_destination.name,' move timer is ',self.move_timer)
+        print('vehicle ',self.name, 'is ',self.state,' path is ',self.schedule_name)
+        schedule_nodes = self.schedule.nodes
+        for node in schedule_nodes:
+            print('too ',node.name)
+        #print('currently is ',self.state, 'previous stop is ',self.previous_stop.name,' next stop is ',self.next_destination.name,' move timer is ',self.move_timer)
     
     #print when the vehicle is at a stop
     def verbose_stop(self):

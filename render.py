@@ -6,6 +6,7 @@ import time as time
 import pandas as pd
 import numpy as np 
 import network as n
+import evaluator as e
 import warnings as warnings
 import cProfile as profile
 import pstats
@@ -118,6 +119,7 @@ class Display:
         default_schedule = 'schedule_sydney.csv'
         default_segment_schedule = 'schedule_segments_sydney.csv'
         default_parameters = 'parameters_sydney.csv'
+        default_eval = 'eval_sydney.csv'
         #options
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
@@ -154,7 +156,13 @@ class Display:
         self.parameters_file_path_label.pack()
         self.parameters_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
         self.parameters_file_path_entry.insert(0,default_parameters)
-        self.parameters_file_path_entry.pack()       
+        self.parameters_file_path_entry.pack()
+        #csv file for importing evaluation costs
+        self.eval_file_path_label = tk.Label(master=self.main_controls,text='EVALUATION FILE PATH',fg='black',bg='white',width=20)
+        self.eval_file_path_label.pack()
+        self.eval_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
+        self.eval_file_path_entry.insert(0,default_eval)
+        self.eval_file_path_entry.pack()   
         #control for importing files 
         self.import_files_button = tk.Button(master=self.main_controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
         self.import_files_button.pack()
@@ -171,7 +179,7 @@ class Display:
         #this button will run the basic simulation
         #self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.run_simulation_click,width=20)
         #this option with profiling
-        self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.profile_run_simulation_click,width=20)
+        self.run_simulation_button = tk.Button(master=self.main_controls,text="RUN SIMULATION",fg='black',bg='white',command=self.run_simulation_click,width=20)
         self.run_simulation_button.pack()
         #this button will play back the basic simulation
         self.view_simulation_button = tk.Button(master=self.main_controls,text="VIEW SIMULATION",fg='black',bg='white',command=self.view_simulation_click,width=20)
@@ -181,6 +189,9 @@ class Display:
         self.message_header.pack()
         self.message = tk.Label(master=self.main_controls,text='',fg='black',bg='white',width=20,height=5)
         self.message.pack()
+        #run evaluation button
+        self.run_evaluation_button = tk.Button(master=self.main_controls,text="RUN EVALUATION",fg='black',bg='white',command=self.run_evaluation_click,width=20)
+        self.run_evaluation_button.pack()
         #create the underlying visulisation controls
         #this button will allow choosing different types of controls
         self.secondary_controls = tk.Frame(master=self.window)
@@ -193,6 +204,15 @@ class Display:
         #they are created hidden, and will be unhidden later
 
     #CLICK FUNCTIONS FOR MAIN CONTROL
+    def run_evaluation_click(self):
+        if self.simulation_run_flag==True:
+            evaluator_message = self.evaluator.evaluate(self.sim_times,self.sim_vehicle_passengers,self.sim_node_passengers,self.num_failed_passengers,self.num_successful_passengers)
+            self.message_update('please see terminal\n for evaluation printout')
+            print(evaluator_message)
+        
+        elif self.simulation_run_flag==False:
+            self.message_update('simulation must be \n run for evaluation')
+            self.log_print('simulation must be run for evaluation')
 
     #callback for button which allows us to switch between control modes for viewing network info vs controls for viewing simulation results
     def control_mode_select_click(self):
@@ -245,11 +265,13 @@ class Display:
         schedule_files_path = self.schedule_file_path_entry.get()
         schedule_segment_files_path = self.schedule_segment_file_path_entry.get()
         parameter_files_path = self.parameters_file_path_entry.get()
+        eval_files_path = self.eval_file_path_entry.get()
         #check that each file path is valid, and if so, import the file
         node_path_valid = path.isfile(node_files_path)
         edge_path_valid = path.isfile(edge_files_path)
         schedule_path_valid = path.isfile(schedule_files_path)
         parameter_path_valid = path.isfile(parameter_files_path)
+        eval_path_valid = path.isfile(eval_files_path)
         #determine type of schedule
         if schedule_segment_files_path == "":
             #we won't be using schedule segments to construct our schedule
@@ -285,6 +307,10 @@ class Display:
             import_files_message = import_files_message + parameter_files_path + " is not a valid file \n"
             self.log_print(parameter_files_path + " is not a valid file")
             import_successful = False
+        if eval_path_valid == False:
+            import_files_message = import_files_message + eval_files_path + " is not a valid file \n"
+            self.log_print(eval_files_path + " is not a valid file")
+            import_successful = False
 
 
         if import_successful:
@@ -313,6 +339,11 @@ class Display:
                 self.parameter_csv = pd.read_csv(parameter_files_path,thousands=r',')
             except:
                 import_files_message = import_files_message + " import of " + parameter_files_path  + " failed  \n not a valid csv file\n"
+                import_successful = False
+            try:
+                self.eval_csv = pd.read_csv(eval_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + eval_files_path  + " failed  \n not a valid csv file\n"
                 import_successful = False
             #if we are in complex schedule mode, try and import segment info
             if self.schedule_type=='complex':
@@ -368,8 +399,12 @@ class Display:
         #    self.setup_network_viz_tools()
         #else:
         #    self.setup_network_viz_tools() #setup tools for exploring aspects of the simulated network
-        
+        #also setup the evaulator
+        self.setup_evaluator()
         self.simulation_setup_flag = True #flag to indicate that the simulation has been setup
+
+    def setup_evaluator(self):
+        self.evaluator = e.Evaluator(self.eval_csv,self.parameter_csv)
 
     #run the simulation click using Cprofile to determine running times
     def profile_run_simulation_click(self):
@@ -387,11 +422,11 @@ class Display:
             self.log_print(simulation_start_message)
             self.message_update(simulation_start_message)
             time1 = time.time()
-            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers = self.sim_network.basic_sim(1260) #run the simulation and store the data
+            self.sim_times,self.sim_vehicle_latitudes,self.sim_vehicle_longitudes,self.sim_vehicle_names,self.sim_vehicle_passengers,self.sim_node_passengers,self.num_failed_passengers,self.num_successful_passengers,self.sim_time_taken = self.sim_network.basic_sim() #run the simulation and store the data
             self.setup_default_sim_current_values() #set default values for information about specific timesteps
             self.simulation_run_flag = True #simulation has been run and relevant values have been stored
             time2 = time.time()
-            simulation_finished_message = "simulation finished in \n " + "{:.3f}".format(time2-time1) + " seconds"
+            simulation_finished_message = "simulation finished in \n " + "{:.3f}".format(time2-time1) + " seconds \n The simulation represented \n" + str(self.sim_time_taken) + " minutes"
             self.log_print(simulation_finished_message)
             self.message_update(simulation_finished_message)
         else:

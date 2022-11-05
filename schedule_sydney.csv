@@ -53,7 +53,7 @@ Cabramatta-Central,15,0,"1,200","Cabramatta-Merrylands,Merrylands-Granville,Gran
 Central-Cabramatta,15,0,"1,200","Central-Strathfield Fast,Strathfield-Lidcombe Fast,Lidcombe-Auburn,Auburn-Granville Fast,Granville-Merrylands,Merrylands-Cabramatta"
 North Sydney-Central,5,0,"1,200","North Sydney-Wynyard,Wynyard-Central"
 Central-North Sydney,5,0,"1,200","Central-Wynyard,Wynyard-North Sydney"
-City Circle Clockwise,5,0,"1,200","Central-Wynyard,Wynyard-Central City Circle"
-City Circle Counter-Clockwise,5,0,"1,200","Central-Wynyard City Circle,Wynyard-Central"
+City Circle Clockwise,5,0,"1,200","Central-Wynyard,Wynyard-Central Circle"
+City Circle Counter,5,0,"1,200","Central-Wynyard Circle,Wynyard-Central"
 Lidcombe-Olympic Park,15,0,"1,200",Lidcombe-Olympic Park
 Olympic Park-Lidcombe,15,7,"1,200",Olympic Park-Lidcombe
