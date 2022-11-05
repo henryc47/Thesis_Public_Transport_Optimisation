@@ -92,7 +92,7 @@ class Display:
     def setup_canvas(self):
         window_width = self.window.winfo_screenwidth()
         window_height = self.window.winfo_screenheight()
-        self.canvas_width = window_width-200
+        self.canvas_width = window_width-440
         self.canvas_height = window_height-100
         self.canvas_center_x = int(self.canvas_width/2)
         self.canvas_center_y = int(self.canvas_height/2)
@@ -110,7 +110,8 @@ class Display:
     def setup_main_controls(self):
         #create the control panel
         self.main_controls = tk.Frame(master=self.window)
-        self.main_controls.pack(side = tk.LEFT,anchor=tk.N)
+        #self.main_controls.pack(side = tk.LEFT,anchor=tk.N)
+        self.main_controls.place(x=0,y=50)
         #default file paths
         default_nodes = 'nodes_sydney.csv'
         default_edges = 'edges_sydney.csv'
@@ -180,11 +181,13 @@ class Display:
         self.message_header.pack()
         self.message = tk.Label(master=self.main_controls,text='',fg='black',bg='white',width=20,height=5)
         self.message.pack()
-        #this button will allow choosing different types of controls
-        self.control_mode_select_button = tk.Button(master=self.main_controls,text="CONTROL SELECT",fg='black',bg='white',command=self.control_mode_select_click,width=20)
-        self.control_mode_select_button.pack()
-        self.control_mode = 'none'
         #create the underlying visulisation controls
+        #this button will allow choosing different types of controls
+        self.secondary_controls = tk.Frame(master=self.window)
+        self.secondary_controls.place(x=220,y=50)
+        #self.control_mode_select_button = tk.Button(master=self.secondary_controls,text="CONTROL SELECT",fg='black',bg='white',command=self.control_mode_select_click,width=20)
+        #self.control_mode_select_button.pack()
+        #self.control_mode = 'none'
         self.setup_network_viz_tools()
         self.setup_simulation_viz_tools()
         #they are created hidden, and will be unhidden later
@@ -241,10 +244,12 @@ class Display:
         edge_files_path = self.edge_file_path_entry.get()
         schedule_files_path = self.schedule_file_path_entry.get()
         schedule_segment_files_path = self.schedule_segment_file_path_entry.get()
+        parameter_files_path = self.parameters_file_path_entry.get()
         #check that each file path is valid, and if so, import the file
         node_path_valid = path.isfile(node_files_path)
         edge_path_valid = path.isfile(edge_files_path)
         schedule_path_valid = path.isfile(schedule_files_path)
+        parameter_path_valid = path.isfile(parameter_files_path)
         #determine type of schedule
         if schedule_segment_files_path == "":
             #we won't be using schedule segments to construct our schedule
@@ -276,6 +281,11 @@ class Display:
             import_files_message = import_files_message + schedule_segment_files_path + " is not a valid file \n"
             self.log_print(schedule_segment_files_path + " is not a valid file")
             import_successful = False
+        if parameter_path_valid == False:
+            import_files_message = import_files_message + parameter_files_path + " is not a valid file \n"
+            self.log_print(parameter_files_path + " is not a valid file")
+            import_successful = False
+
 
         if import_successful:
             #if file path is valid, actually import the files
@@ -297,6 +307,12 @@ class Display:
                 self.schedule_csv = pd.read_csv(schedule_files_path,thousands=r',')
             except:
                 import_files_message = import_files_message + " import of " + schedule_files_path + " failed  \n not a valid csv file\n"
+                import_successful = False
+            #try and import the network/simulation parameters
+            try:
+                self.parameter_csv = pd.read_csv(parameter_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + parameter_files_path  + " failed  \n not a valid csv file\n"
                 import_successful = False
             #if we are in complex schedule mode, try and import segment info
             if self.schedule_type=='complex':
@@ -341,7 +357,7 @@ class Display:
             self.draw_network_click()
         
         time1 = time.time()
-        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,schedule_type=self.schedule_type)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,schedule_type=self.schedule_type)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
@@ -495,8 +511,10 @@ class Display:
     #setup these tools
     def setup_network_viz_tools(self):
         #create the overall frame
-        self.network_viz = tk.Frame(master=self.main_controls)
+        self.network_viz = tk.Frame(master=self.secondary_controls)
         #self.network_viz.pack(side = tk.TOP)
+        self.network_viz_label = tk.Label(master=self.network_viz,text='NETWORK VIEW OPTIONS',fg='white',bg='cyan',width=20)
+        self.network_viz_label.pack()
         #A label for the too/from select button
         self.display_mode_label = tk.Label(master=self.network_viz,text='DIRECTION SELECT',fg='black',bg='white',width=20)
         self.display_mode_label.pack()
@@ -542,11 +560,15 @@ class Display:
         self.edge_colour_button.pack()
         self.edge_colour_type = "constant" #by default, edges will be a constant size
         self.secondary_control_mode = 'network_viz' #network viz mode is being displayed
+        self.network_viz.pack()
 
     def setup_simulation_viz_tools(self):
         #create the overall frame
         self.secondary_control_mode = 'simulation_viz' #simulation viz mode is being displayed
-        self.simulation_viz = tk.Frame(master=self.main_controls)
+        self.simulation_viz = tk.Frame(master=self.secondary_controls)
+        #label for simulation viz mode
+        self.simulation_viz_label = tk.Label(master=self.simulation_viz,text='SIM VIEW OPTIONS',fg='white',bg='cyan',width=20)
+        self.simulation_viz_label.pack()
         #create a label to display the time
         self.time_label = tk.Label(master=self.simulation_viz,text='TIME',fg='black',bg='white',width=20)
         self.time_label.pack()
@@ -573,6 +595,7 @@ class Display:
         self.vehicle_colour_button = tk.Button(master=self.simulation_viz,text="VEHICLE COLOUR BASED \n ON CROWDING",fg='black',bg='white',command=self.vehicle_colour_click,width=20,height=2)
         self.vehicle_colour_type = "crowding" #by default, vehicle colours will be based off the level of crowding in the vehicle
         self.vehicle_colour_button.pack()
+        self.simulation_viz.pack()
 
     def vehicle_colour_click(self):
         if self.vehicle_colour_type == "crowding":

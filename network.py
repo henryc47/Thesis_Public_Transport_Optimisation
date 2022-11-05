@@ -261,7 +261,7 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_csv,edges_csv,schedule_csv,verbose=1,segment_csv='',schedule_type='simple'):
+    def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,verbose=1,segment_csv='',schedule_type='simple'):
         time1 = time.time()
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
@@ -293,12 +293,20 @@ class Network:
                 #if input edge is one way
                 self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i])#UP
 
-
-
+        #extract parameter data
+        self.vehicle_max_seated = parameters_csv["Vehicle Max Seated"].to_list()[0] #maximum number who can sit inside a vehicle
+        self.vehicle_max_standing = parameters_csv["Vehicle Max Standing"].to_list()[0] #maximum number who can fit inside a vehicle seated + standing
+        self.vehicle_cost = parameters_csv["Vehicle Cost"].to_list()[0] #marginal cost of running a vehicle, $/hour
+        self.agent_cost_seated = parameters_csv["Agent Cost Seated"].to_list()[0] #marginal value of agents time, $/seated
+        self.agent_cost_standing = parameters_csv["Agent Cost Standing"].to_list()[0] #marginal value of agents time, higher because standing is unpleasant $/hr
+        self.agent_cost_waiting = parameters_csv["Agent Cost Waiting"].to_list()[0] #marginal value of agents time, higher because waiting is unpleasant $/hr
+        self.windup_time = parameters_csv["Windup Time"].to_list()[0] #time between when simulation is setup and when passengers are generated at max rate, simulates start of day
+        self.winddown_time = parameters_csv["Winddown Time"].to_list()[0] #time before passenger stop being generated when passenger generation starts being reduce, simulates end of the day
+        self.final_time = parameters_csv["Winddown Time"].to_list()[0] #time when passengers stop being generated, no more vehicles will leave after this point
+        self.unfinished_penalty = parameters_csv["Unfinished Penalty"].to_list()[0] #penalty if passengers are unable to reach their destination, based roughly on cost of late night taxi ride  
+        self.passenger_time_multipler = 0 #multiplier on how many passengers are generated per hour
         #allocate passengers 
-        #this will be replaced by a more sophisticated method of passenger allocation later
-        num_hours = 12#
-        self.node_passengers = (nodes_csv["Daily_Passengers"]/num_hours).to_list()#passengers per hour for each station
+        self.node_passengers = (nodes_csv["Hourly Passengers"]).to_list()#passengers per hour for each station
         time2 = time.time()
         if self.verbose>=1:
             print('time to extract and process network data - ', time2-time1, ' seconds')
@@ -323,6 +331,7 @@ class Network:
         self.schedule_csv = schedule_csv
         self.schedule_type = schedule_type #simple schedule type
         self.segment_csv = segment_csv #segments used in the complex schedule
+        self.parameters_csv = parameters_csv #segment used 
         #setup for vehicle simulations
         self.num_vehicles_started_here = np.zeros(num_nodes) #store the number of vehicles on the network which started from a particular node
         self.vehicles = [] #container to store vehicles in
@@ -342,6 +351,21 @@ class Network:
         if self.verbose>=1:
             print('time to extract and generate schedules', time2-time1, 'seconds')
 
+    #update the passenger time multiplier, sets the number of passengers generated to be lower immediately after network and before closing    
+    def update_passenger_time_multiplier(self):
+        windup_time_end = self.windup_time
+        winddown_time_start = self.final_time-self.winddown_time
+        if self.time>windup_time_end and self.time<winddown_time_start:
+            self.passenger_time_multipler = 1 #network is fully operational
+        elif self.time<windup_time_end:
+            self.passenger_time_multiplier = self.time/windup_time_end
+        elif self.time>winddown_time_start and self.time<self.final_time:
+            time_till_end = self.final_time-self.time
+            self.passenger_time_multiplier = time_till_end/self.winddown_time
+        elif self.time>=self.final_time:
+            self.passenger_time_multiplier = 0
+        
+
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
         vehicle_name = str(self.time) + " " + schedule.provide_name() #calculate the vehicles name
@@ -351,7 +375,7 @@ class Network:
         start_node_index = start_node.id
         self.num_vehicles_started_here[start_node_index] += 1 #record that a vehicle started at a particular node
         self.vehicle_names.append(vehicle_name) #add the vehicles name to the list
-        self.vehicles.append(vehicle.Vehicle(copy_schedule,self.time,vehicle_name)) #create the vehicle and add it to the list
+        self.vehicles.append(vehicle.Vehicle(copy_schedule,self.time,vehicle_name,seated_capacity=self.vehicle_max_seated,standing_capacity=self.vehicle_max_standing)) #create the vehicle and add it to the list
         if self.verbose>=1:
             print('a vehicle ', vehicle_name, ' has been created at ',start_node.name, ' at time ',self.time)
 
@@ -389,7 +413,7 @@ class Network:
             for j in range(num_nodes):
                 end_node = self.nodes[j] #extract a reference to that node
                 num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
-                num_passengers_per_min = num_passengers_pair/60 #we create passengers every minute, but statistics are per hour
+                num_passengers_per_min = (num_passengers_pair/60)*self.passenger_time_multipler #we create passengers every minute, but statistics are per hour
                 #create the required number of passengers
                 int_num_passengers = int(num_passengers_per_min) #rounded-down number of passengers to create
                 chance_additional_passenger = num_passengers_per_min-int_num_passengers #chance of an additional passenger being created from the remainder
@@ -516,6 +540,7 @@ class Network:
 
     #update time by one unit        
     def update_time(self):
+        self.update_passenger_time_multiplier()
         if self.verbose>=1:
             print('time ', self.time)
         if self.verbose>=1:
