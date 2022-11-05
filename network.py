@@ -8,6 +8,7 @@ import schedule as schedule
 import vehicle as vehicle
 import copy as copy #for shallow-copying schedules
 import random as rand
+rand.seed(30699) #consistent seed to ensure consistent results
 import agent as a
 
 #edge class, represents a (one-way) link between two nodes
