@@ -192,6 +192,12 @@ class Display:
         #run evaluation button
         self.run_evaluation_button = tk.Button(master=self.main_controls,text="RUN EVALUATION",fg='black',bg='white',command=self.run_evaluation_click,width=20)
         self.run_evaluation_button.pack()
+        #set optimiser
+        self.optimiser_label = tk.Label(master=self.main_controls,text="TIMETABLE OPTIMISER",fg='black',bg='white',width=20)
+        self.optimiser_label.pack()
+        self.optimiser_button = tk.Button(master=self.main_controls,text="CSV TIMETABLE",fg='black',bg='white',width=20,command=self.switch_optimiser)
+        self.optimiser_button.pack()
+        self.optimiser = 'hardcoded'
         #create the underlying visulisation controls
         #this button will allow choosing different types of controls
         self.secondary_controls = tk.Frame(master=self.window)
@@ -204,6 +210,15 @@ class Display:
         #they are created hidden, and will be unhidden later
 
     #CLICK FUNCTIONS FOR MAIN CONTROL
+    def switch_optimiser(self):
+        if self.optimiser=="hardcoded":
+            self.optimiser_button.config(text="HENRY CONVEX")
+            self.optimiser = 'henry_convex'
+        else:
+            self.optimiser_button.config(text="CSV TIMETABLE")
+            self.optimiser = 'hardcoded'
+
+
     def run_evaluation_click(self):
         if self.simulation_run_flag==True:
             evaluator_message = self.evaluator.evaluate(self.sim_times,self.sim_vehicle_passengers,self.sim_node_passengers,self.num_failed_passengers,self.num_successful_passengers)
@@ -388,7 +403,7 @@ class Display:
             self.draw_network_click()
         
         time1 = time.time()
-        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,schedule_type=self.schedule_type)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,eval_csv=self.eval_csv,schedule_type=self.schedule_type)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)

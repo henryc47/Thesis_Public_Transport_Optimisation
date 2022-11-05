@@ -262,13 +262,14 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,verbose=1,segment_csv='',schedule_type='simple'):
+    def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,eval_csv,verbose=1,segment_csv='',schedule_type='simple',optimiser='hardcoded'):
         time1 = time.time()
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
         self.edges = [] #list of edges 
         self.nodes = [] #list of nodes
         self.edge_names = [] #list of generated edge names
+        self.optimiser = optimiser #optimisers we can use, options are "hardcoded", the set frequency from the schedule and "henryconvex", my own custom convex optimisation function 
         #extract the raw data
         #now extract node data
         self.node_names = nodes_csv["Name"].to_list()
@@ -301,6 +302,11 @@ class Network:
         self.winddown_time = parameters_csv["Winddown Time"].to_list()[0] #time before passenger stop being generated when passenger generation starts being reduce, simulates end of the day
         self.final_time = parameters_csv["Final Time"].to_list()[0] #time when passengers + vehicles stop being generated
         self.stop_simulation_time = parameters_csv["Stop Simulation"].to_list()[0]
+        self.vehicle_cost = eval_csv["Vehicle Cost"].to_list()[0] #marginal cost of running a vehicle, $/hour
+        self.agent_cost_seated = eval_csv["Agent Cost Seated"].to_list()[0] #marginal value of agents time, $/seated
+        self.agent_cost_standing = eval_csv["Agent Cost Standing"].to_list()[0] #marginal value of agents time, higher because standing is unpleasant $/hr
+        self.agent_cost_waiting = eval_csv["Agent Cost Waiting"].to_list()[0] #marginal value of agents time, higher because waiting is unpleasant $/hr
+        self.unfinished_penalty = eval_csv["Unfinished Penalty"].to_list()[0] #penalty if passengers are unable to reach their destination, based roughly on cost of late night taxi ride
         self.passenger_time_multipler = float(0) #multiplier on how many passengers are generated per hour, converted to a float as it refuses to become an integer later
         #allocate passengers 
         self.node_passengers = (nodes_csv["Hourly Passengers"]).to_list()#passengers per hour for each station
@@ -343,10 +349,20 @@ class Network:
         self.num_successful_agents = 0 #number of agents who were created and found a path to their destination
         time1 = time.time()
         self.create_schedules() #create the schedules
+        if self.optimiser=='hardcoded':
+            pass #just use the default schedule gaps from the imported schedule
+        elif self.optimiser=='henry_convex':
+            self.henry_convex_optimiser() #use this optimiser to generate the schedule gaps
         self.determine_which_nodes_have_schedule() #determine which nodes have which schedules
         time2 = time.time()
         if self.verbose>=1:
             print('time to extract and generate schedules', time2-time1, 'seconds')
+
+    #implemention of my own custom optimisation algorithm
+    #which determines the optimal weight time based on 
+    def henry_convex_optimiser():
+        pass
+
 
     #update the passenger time multiplier, sets the number of passengers generated to be lower immediately after network and before closing    
     def update_passenger_time_multiplier(self):
@@ -708,6 +724,9 @@ class Network:
         for i in range(num_schedules):
             self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_strings[i])) #create a schedule object for each schedule
         #create the dispatch schedule
+    
+    def create_dispatch_schedule(self):
+        num_schedules = len(self.schedule_names)
         self.dispatch_schedule2 = []
         for i in range(num_schedules):
             #create the dispatch schedule for each particular schedule
@@ -735,21 +754,6 @@ class Network:
         for i in range(num_schedules):
             self.schedules.append(self.create_schedule(self.schedule_names[i],schedule_texts[i])) #create a schedule object for each schedule
         
-        #now that we have created the list of schedules, time to initalise the list of timestamps when services are to be dispatched
-        self.dispatch_schedule = np.zeros(num_schedules) + self.schedule_offsets
-        #the dispatch schedule will be a list of lists of the times a vehicle of each schedule will be dispatched
-        self.dispatch_schedule2 = []
-        for i in range(num_schedules):
-            #create the dispatch schedule for each particular schedule
-            single_dispatch_schedule = []
-            service_time = self.schedule_offsets[i] #extract the starting time of a service
-            finish_time = self.schedule_finish[i] #and the last time at which a service can start
-            service_gap = self.schedule_gaps[i]
-            while service_time<=finish_time:
-                single_dispatch_schedule.append(service_time) #add the time of the service to the dispatch schedule
-                service_time = service_time + service_gap #calculate when the next service will occur
-            #once we have added all the departure times for this service, store it in the overall dispatch schedules
-            self.dispatch_schedule2.append(single_dispatch_schedule)
 
     #create a schedule object from a name and a text string
     def create_schedule(self,name,schedule_string):
