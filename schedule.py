@@ -100,4 +100,10 @@ class Schedule:
         
         return node_found,search_node_time,nodes_after,node_times_after
 
+    def get_length(self): #get the length of a schedule (time taken to traverse)
+        length = 0
+        for edge in self.edges:
+            length = length + edge.travel_time
+        return length
+
 

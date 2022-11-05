@@ -217,7 +217,8 @@ class Display:
         else:
             self.optimiser_button.config(text="CSV TIMETABLE")
             self.optimiser = 'hardcoded'
-
+        if self.simulation_setup_flag==True:
+            self.message_update('note you must resetup the simulation to apply a new optimiser')
 
     def run_evaluation_click(self):
         if self.simulation_run_flag==True:
@@ -403,7 +404,7 @@ class Display:
             self.draw_network_click()
         
         time1 = time.time()
-        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,eval_csv=self.eval_csv,schedule_type=self.schedule_type)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,eval_csv=self.eval_csv,schedule_type=self.schedule_type,optimiser=self.optimiser)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)

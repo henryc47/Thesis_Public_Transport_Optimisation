@@ -264,6 +264,7 @@ class Network:
     #note, this assumes that passengers are evenly distributed through the day
     def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,eval_csv,verbose=1,segment_csv='',schedule_type='simple',optimiser='hardcoded'):
         time1 = time.time()
+        print('optimiser ',optimiser)
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
         self.edges = [] #list of edges 
@@ -353,16 +354,47 @@ class Network:
             pass #just use the default schedule gaps from the imported schedule
         elif self.optimiser=='henry_convex':
             self.henry_convex_optimiser() #use this optimiser to generate the schedule gaps
+        self.create_dispatch_schedule()
         self.determine_which_nodes_have_schedule() #determine which nodes have which schedules
         time2 = time.time()
         if self.verbose>=1:
             print('time to extract and generate schedules', time2-time1, 'seconds')
 
     #implemention of my own custom optimisation algorithm
-    #which determines the optimal weight time based on 
-    def henry_convex_optimiser():
-        pass
+    #which determines the optimal wait time between services based on minimising total service cost + waiting cost
+    def henry_convex_optimiser(self):
+        schedule_costs = []
+        num_nodes = len(self.node_names)
+        num_schedules_each_node = np.zeros(num_nodes) #number of schedules at each node
+        for schedule in self.schedules:
+            length = schedule.get_length()
+            cost = (length/60)*self.vehicle_cost #determine the cost of providing a vehicle service
+            schedule_costs.append(cost)
+            node_names = schedule.node_names #get the name of all the nodes
+            for name in node_names:
+                node_index = self.get_node_index(name)
+                num_schedules_each_node[node_index] = num_schedules_each_node[node_index] + 1 #one more schedule is present at this node
 
+        #now determine the number of passengers starting at each schedule (nodes with multiple schedules have reduced weight)
+        for i,schedule in enumerate(self.schedules):
+            weighted_passengers = 0
+            node_names = schedule.node_names #get the name of all the node
+            for name in node_names:
+                node_index = self.get_node_index(name)
+                node_passengers = self.node_passengers[node_index]
+                weighted_passengers = weighted_passengers + (node_passengers/num_schedules_each_node[node_index])
+            #now use the derived equation (see thesis) to determine the optimal frequency
+            optimal_wait_time = np.sqrt((2*schedule_costs[i])/(weighted_passengers*self.agent_cost_waiting))
+            optimal_wait_time = int(optimal_wait_time*60) #convert to integers minutes
+            print('for schedule ',schedule.name,' optimal wait time is ',optimal_wait_time,' mins') #DEBUG
+            self.schedule_gaps[i] = optimal_wait_time
+
+
+           
+
+        #having determined the length and weighted number of passengers in each schedule, let's calculate the optimal frequency 
+    
+    
 
     #update the passenger time multiplier, sets the number of passengers generated to be lower immediately after network and before closing    
     def update_passenger_time_multiplier(self):
@@ -989,7 +1021,7 @@ class Network:
     #provide a breakdown of where passengers starting at a particular node are going
     def test_origin_destination_matrix(self,start_node_name):
         #try and find the starting node in the list of all nodes
-        start_index = get_node_index(self,start_node_name)
+        start_index = self.get_node_index(self,start_node_name)
         if start_index==-1:
             return False
         #if there was not an error, continue
