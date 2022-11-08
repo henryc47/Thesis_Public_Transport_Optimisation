@@ -56,10 +56,10 @@ class Evaluator:
         message = ""
         message = message + "Num Passenger Trips = " + f'{num_passengers:,}' + '\n'
         message = message + "% Trips Did Not Destination = " + f'{(failure_rate*100):.2f}' + '% \n'
-        message = message + "Total Time per Passenger = " + f'{(time_per_passenger*60):.2f}' + ' Mins \n'
-        message = message + "Time Standing = " + f'{(time_per_passenger_standing*60):.2f}' + ' Mins \n'
-        message = message + "Time Seated = " + f'{(time_per_passenger_seated*60):.2f}' + ' Mins \n'
-        message = message + "Time Waiting = " + f'{(time_per_passenger_waiting*60):.2f}' + ' Mins \n'
+        message = message + "Total Time per Passenger = " + f'{(time_per_passenger*self.timesteps_per_hour):.2f}' + ' Mins \n'
+        message = message + "Time Standing = " + f'{(time_per_passenger_standing*self.timesteps_per_hour):.2f}' + ' Mins \n'
+        message = message + "Time Seated = " + f'{(time_per_passenger_seated*self.timesteps_per_hour):.2f}' + ' Mins \n'
+        message = message + "Time Waiting = " + f'{(time_per_passenger_waiting*self.timesteps_per_hour):.2f}' + ' Mins \n'
         message = message + "Cost of Vehicle Operation = $" + f'{cost_vehicle_time:,.0f}' + "\n"
         message = message + "Max Number of Vehicles at Once = " + f'{max_num_vehicles_at_once:,.0f}' + "\n"
         message = message + "Max Passengers in a Vehicle = " + f'{max_passengers_in_a_vehicle:,.0f}' + "\n"

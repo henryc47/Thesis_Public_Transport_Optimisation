@@ -263,7 +263,7 @@ class Node:
 class Network:
     #initalise the physical network
     #note, this assumes that passengers are evenly distributed through the day
-    def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,eval_csv,verbose=1,segment_csv='',schedule_type='simple',optimiser='hardcoded'):
+    def __init__(self,nodes_csv,edges_csv,schedule_csv,parameters_csv,eval_csv,scenario_csv,verbose=1,segment_csv='',schedule_type='simple',optimiser='hardcoded'):
         time1 = time.time()
         print('optimiser ',optimiser)
         self.verbose = verbose #import verbosity
@@ -300,10 +300,8 @@ class Network:
         #extract parameter data
         self.vehicle_max_seated = parameters_csv["Vehicle Max Seated"].to_list()[0] #maximum number who can sit inside a vehicle
         self.vehicle_max_standing = parameters_csv["Vehicle Max Standing"].to_list()[0] #maximum number who can fit inside a vehicle seated + standing     
-        self.windup_time = parameters_csv["Windup Time"].to_list()[0] #time between when simulation is setup and when passengers are generated at max rate, simulates start of day
-        self.winddown_time = parameters_csv["Winddown Time"].to_list()[0] #time before passenger stop being generated when passenger generation starts being reduce, simulates end of the day
-        self.final_time = parameters_csv["Final Time"].to_list()[0] #time when passengers + vehicles stop being generated
-        self.stop_simulation_time = parameters_csv["Stop Simulation"].to_list()[0]
+        self.traffic_time_gap = parameters_csv["Traffic Time Gap"].to_list()[0] #gap in timesteps between traffic volume updates
+        self.traffic_multiplier = scenario_csv["Traffic Multiplier"].to_list() #traffic multiplier for each time gap of operation
         self.vehicle_cost = eval_csv["Vehicle Cost"].to_list()[0] #marginal cost of running a vehicle, $/hour
         self.agent_cost_seated = eval_csv["Agent Cost Seated"].to_list()[0] #marginal value of agents time, $/seated
         self.agent_cost_standing = eval_csv["Agent Cost Standing"].to_list()[0] #marginal value of agents time, higher because standing is unpleasant $/hr
@@ -392,7 +390,6 @@ class Network:
 
 
            
-
         #having determined the length and weighted number of passengers in each schedule, let's calculate the optimal frequency 
     
     

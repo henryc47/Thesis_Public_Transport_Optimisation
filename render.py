@@ -120,6 +120,7 @@ class Display:
         default_segment_schedule = 'schedule_segments_sydney.csv'
         default_parameters = 'parameters_sydney.csv'
         default_eval = 'eval_sydney.csv'
+        default_scenario = 'ScenarioFixed.csv'
         #options
         #verbose option, determines level of logging to the console
         self.verbose = -1 #default level of logging is  0=none, 1=verbose, 2=super verbose, -1 is placeholder for setup
@@ -163,6 +164,12 @@ class Display:
         self.eval_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
         self.eval_file_path_entry.insert(0,default_eval)
         self.eval_file_path_entry.pack()   
+        #csv file for importing scenario info
+        self.scenario_file_path_label = tk.Label(master=self.main_controls,text='SCENARIO FILE PATH',fg='black',bg='white',width=20)
+        self.scenario_file_path_label.pack()
+        self.scenario_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
+        self.scenario_file_path_entry.insert(0,default_eval)
+        self.scenario_file_path_entry.pack()   
         #control for importing files 
         self.import_files_button = tk.Button(master=self.main_controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)
         self.import_files_button.pack()
@@ -282,12 +289,14 @@ class Display:
         schedule_segment_files_path = self.schedule_segment_file_path_entry.get()
         parameter_files_path = self.parameters_file_path_entry.get()
         eval_files_path = self.eval_file_path_entry.get()
+        scenario_files_path = self.scenario_file_path_entry.get()
         #check that each file path is valid, and if so, import the file
         node_path_valid = path.isfile(node_files_path)
         edge_path_valid = path.isfile(edge_files_path)
         schedule_path_valid = path.isfile(schedule_files_path)
         parameter_path_valid = path.isfile(parameter_files_path)
         eval_path_valid = path.isfile(eval_files_path)
+        scenario_path_valid = path.isfile(scenario_files_path)
         #determine type of schedule
         if schedule_segment_files_path == "":
             #we won't be using schedule segments to construct our schedule
@@ -327,7 +336,10 @@ class Display:
             import_files_message = import_files_message + eval_files_path + " is not a valid file \n"
             self.log_print(eval_files_path + " is not a valid file")
             import_successful = False
-
+        if scenario_path_valid == False:
+            import_files_message = import_files_message + scenario_files_path + " is not a valid file \n"
+            self.log_print(scenario_files_path + " is not a valid file")
+            import_successful = False
 
         if import_successful:
             #if file path is valid, actually import the files
@@ -361,6 +373,10 @@ class Display:
             except:
                 import_files_message = import_files_message + " import of " + eval_files_path  + " failed  \n not a valid csv file\n"
                 import_successful = False
+            try:
+                self.scenario_csv = pd.read_csv(scenario_files_path,thousands=r',')
+            except:
+                import_files_message = import_files_message + " import of " + scenario_files_path  + " failed  \n not a valid csv file\n"
             #if we are in complex schedule mode, try and import segment info
             if self.schedule_type=='complex':
                 try:
@@ -404,7 +420,7 @@ class Display:
             self.draw_network_click()
         
         time1 = time.time()
-        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,eval_csv=self.eval_csv,schedule_type=self.schedule_type,optimiser=self.optimiser)
+        self.sim_network = n.Network(nodes_csv=self.nodes_csv,edges_csv=self.edges_csv,schedule_csv=self.schedule_csv,parameters_csv=self.parameter_csv,verbose=self.verbose,segment_csv=self.schedule_segments_csv,eval_csv=self.eval_csv,scenario_csv=self.scenario_csv,schedule_type=self.schedule_type,optimiser=self.optimiser)
         time2 = time.time()
         simulation_setup_message = "simulation setup in \n" +  "{:.3f}".format(time2-time1) + " seconds"
         self.log_print(simulation_setup_message)
