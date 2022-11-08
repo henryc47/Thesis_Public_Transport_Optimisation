@@ -302,14 +302,15 @@ class Network:
         self.vehicle_max_standing = parameters_csv["Vehicle Max Standing"].to_list()[0] #maximum number who can fit inside a vehicle seated + standing     
         self.traffic_time_gap = parameters_csv["Traffic Time Gap"].to_list()[0] #gap in timesteps between traffic volume updates
         self.traffic_multiplier = scenario_csv["Traffic Multiplier"].to_list() #traffic multiplier for each time gap of operation
+        self.stop_simulation_time = (len(self.traffic_multiplier)-1)*self.traffic_time_gap #time when the simulation should end
         self.vehicle_cost = eval_csv["Vehicle Cost"].to_list()[0] #marginal cost of running a vehicle, $/hour
         self.agent_cost_seated = eval_csv["Agent Cost Seated"].to_list()[0] #marginal value of agents time, $/seated
         self.agent_cost_standing = eval_csv["Agent Cost Standing"].to_list()[0] #marginal value of agents time, higher because standing is unpleasant $/hr
         self.agent_cost_waiting = eval_csv["Agent Cost Waiting"].to_list()[0] #marginal value of agents time, higher because waiting is unpleasant $/hr
         self.unfinished_penalty = eval_csv["Unfinished Penalty"].to_list()[0] #penalty if passengers are unable to reach their destination, based roughly on cost of late night taxi ride
-        self.passenger_time_multipler = float(0) #multiplier on how many passengers are generated per hour, converted to a float as it refuses to become an integer later
+        self.passenger_time_multiplier = float(0) #multiplier on how many passengers are generated per hour, converted to a float as it refuses to become an integer later
         #allocate passengers 
-        self.node_passengers = (nodes_csv["Hourly Passengers"]).to_list()#passengers per hour for each station
+        self.node_passengers = (nodes_csv["Daily Passengers"]).to_list()#passengers per day for each station
         time2 = time.time()
         if self.verbose>=1:
             print('time to extract and process network data - ', time2-time1, ' seconds')
@@ -380,7 +381,7 @@ class Network:
             node_names = schedule.node_names #get the name of all the node
             for name in node_names:
                 node_index = self.get_node_index(name)
-                node_passengers = self.node_passengers[node_index]
+                node_passengers = self.node_passengers[node_index]*np.mean(self.traffic_multiplier)
                 weighted_passengers = weighted_passengers + (node_passengers/num_schedules_each_node[node_index])
             #now use the derived equation (see thesis) to determine the optimal frequency
             optimal_wait_time = np.sqrt((2*schedule_costs[i])/(weighted_passengers*self.agent_cost_waiting))
@@ -394,23 +395,20 @@ class Network:
     
     
 
-    #update the passenger time multiplier, sets the number of passengers generated to be lower immediately after network and before closing    
+    #update the passenger time multiplier, sets the number of passengers generated to vary throughout the day based on the scenario    
     def update_passenger_time_multiplier(self):
-        windup_time_end = self.windup_time
-        winddown_time_start = self.final_time-self.winddown_time
-        if self.time>windup_time_end and self.time<winddown_time_start:
-            self.passenger_time_multipler = 1 #network is fully operational
-        elif self.time<windup_time_end:
-            temp = float(self.time)/float(windup_time_end)
-            self.passenger_time_multipler = temp
-        elif self.time>winddown_time_start and self.time<self.final_time:
-            time_till_end = self.final_time-self.time
-            temp = float(time_till_end)/float(self.winddown_time)
-            self.passenger_time_multipler = temp
-        elif self.time>=self.final_time:
-            self.passenger_time_multipler = 0
+        time_period = int(self.time/self.traffic_time_gap)
+        time_period_start = time_period*self.traffic_time_gap  
+        if self.time<self.stop_simulation_time:
+            end_time_multiplier = self.traffic_multiplier[time_period+1]
+            start_time_multiplier = self.traffic_multiplier[time_period]
+        else:
+            end_time_multiplier = 0
+            start_time_multiplier = 0
         
-        
+        time_from_start = self.time-time_period_start
+        self.passenger_time_multiplier = start_time_multiplier*(1-time_from_start/self.traffic_time_gap) + end_time_multiplier*(time_from_start/self.traffic_time_gap)
+        self.passenger_time_multiplier = self.passenger_time_multiplier
 
     #create a new vehicle and add it to the network
     def create_vehicle(self,schedule):
@@ -461,7 +459,7 @@ class Network:
             for j in range(num_nodes):
                 end_node = self.nodes[j] #extract a reference to that node
                 num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
-                num_passengers_per_min = (num_passengers_pair/60)*self.passenger_time_multipler #we create passengers every minute, but statistics are per hour
+                num_passengers_per_min = (num_passengers_pair/60)*self.passenger_time_multiplier #we create passengers every minute, but statistics are per hour
                 #create the required number of passengers
                 int_num_passengers = int(num_passengers_per_min) #rounded-down number of passengers to create
                 chance_additional_passenger = num_passengers_per_min-int_num_passengers #chance of an additional passenger being created from the remainder
@@ -492,7 +490,7 @@ class Network:
             for j in range(num_nodes): #go through all the nodes we are ending up at
                 end_node = self.nodes[j] #extract a reference to that node
                 num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
-                num_passengers_per_min = num_passengers_pair/60 #we create passengers every minute, but statistics are per hour
+                num_passengers_per_min = (num_passengers_pair/60)*self.passenger_time_multipler #we create passengers every minute, but statistics are per day
                 self.create_passengers_pair(start_node,end_node,num_passengers_per_min)
 
     #create the passengers for a specific pair of nodes and edges
@@ -574,12 +572,25 @@ class Network:
                 copy_stop_node_agents = copy.copy(stop_node.agents) #create a shallow copy of the list of agents at the node (agents will be the same, but references will be independent)
                 num_removed = 0 #keep of number removed so we can pop the right agent
                 for j,agent in enumerate(copy_stop_node_agents): #go through all the agents where the vehicle stopped
+                    original_path = copy.deepcopy(agent.destination_path)
                     will_board = agent.board(schedule_name)
                     if will_board == True:
                         #if the agent is getting on the vehicles
-                        agent = stop_node.remove_agent(j-num_removed) #remove them from the list of agents at the node, making sure to account for the change in the array size due to removed agents
-                        vehicle.board_agent(agent) #have the agents board the vehicle
-                        num_removed = num_removed + 1 #we have removed another agent
+                        vehicle_capacity = vehicle.get_capacity()
+                        agent_passengers = agent.number_passengers
+                        if agent_passengers<=vehicle_capacity:
+                            agent = stop_node.remove_agent(j-num_removed) #remove them from the list of agents at the node, making sure to account for the change in the array size due to removed agents
+                            vehicle.board_agent(agent) #have the agents board the vehicle
+                            num_removed = num_removed + 1 #we have removed another agent
+                        elif vehicle_capacity==0:
+                            agent.destination_path = original_path
+                        else:
+                            leftover_passengers = agent_passengers-vehicle_capacity
+                            agent = stop_node.agents[j-num_removed]
+                            copy_agent = a.Agent(agent.start_node,agent.destination_node,agent.id,agent.start_time,agent.network,vehicle_capacity,copy.deepcopy(agent.destination_path))
+                            agent.num_passengers = leftover_passengers
+                            agent.destination_path = original_path 
+                            vehicle.board_agent(copy_agent)
                     else:
                         #if agent is not boarding, we do not need to do anything
                         pass

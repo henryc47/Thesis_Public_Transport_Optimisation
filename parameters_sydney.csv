@@ -1,2 +1,2 @@
-Vehicle Max Seated,Vehicle Max Standing,Vehicle Cost,Agent Cost Seated,Agent Cost Standing,Agent Cost Waiting,Windup Time,Winddown Time,Final Time,Stop Simulation
-960,1680,700,10,15,15,60,60,1200,1260
+Vehicle Max Seated,Vehicle Max Standing,Traffic Time Gap
+910,1610,60

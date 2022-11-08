@@ -21,6 +21,7 @@ class Vehicle:
         self.at_final_destination = False #mark if a vehicle has reached it's final destination, and will be deleted next update
         self.agents = [] #container to store agents in the vehicle
         self.num_passengers = 0 #number of passengers in the vehicle
+        self.max_passengers = 1610 #maximum number of passengers in the vehicle
 
     #have an agent try and board the vehicle
     def board_agent(self,agent):
@@ -33,6 +34,8 @@ class Vehicle:
         self.num_passengers = self.num_passengers - removed_agent.number_passengers #the number of passengers has decreased
         return removed_agent
     
+    def get_capacity(self):
+        return self.max_passengers-self.num_passengers
 
     #move the vehicle around the network according to its schedule
     def update(self):

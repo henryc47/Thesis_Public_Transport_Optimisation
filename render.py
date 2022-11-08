@@ -168,7 +168,7 @@ class Display:
         self.scenario_file_path_label = tk.Label(master=self.main_controls,text='SCENARIO FILE PATH',fg='black',bg='white',width=20)
         self.scenario_file_path_label.pack()
         self.scenario_file_path_entry = tk.Entry(master=self.main_controls,fg='black',bg='white',width=20)
-        self.scenario_file_path_entry.insert(0,default_eval)
+        self.scenario_file_path_entry.insert(0,default_scenario)
         self.scenario_file_path_entry.pack()   
         #control for importing files 
         self.import_files_button = tk.Button(master=self.main_controls,text='IMPORT FILES',fg='black',bg='white',command=self.import_files_click,width=20)

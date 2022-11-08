@@ -1,85 +1,85 @@
-Route,Modifier,Time,Schedule
-Berowra-Hornsby,,13,"Berowra,Mt Ku-Ring Gai,Mount Colah,Asquith,Hornsby"
-Hornsby-Gordon,,14,"Hornsby,Waitara,Wahroonga,Warrawee,Turramurra,Pymble,Gordon"
-Gordon-Chatswood,,9,"Gordon,Killara,Lindfield,Roseville,Chatswood"
-Gordon-Chatswood,Fast,6,"Gordon,Chatswood"
-Lindfield-Chatswood,,5,"Lindfield,Roseville,Chatswood"
-Chatswood-North Sydney,,13,"Chatswood,Atarmon,St Leonards,Wollstonecraft,Waverton,North Sydney"
-Chatswood-North Sydney,Fast,10,"Chatswood,St Leonards,North Sydney"
-North Sydney-Wynyard,,6,"North Sydney,Milsons Point,Wynyard"
-Wynyard-Central,,5,"Wynyard,Town Hall,Central"
-Central-Wynyard,Circle,5,"Central,Museum,St James,Circular Quay,Wynyard"
-Bondi Junction-Central,,5,"Bondi Junction,Edgecliff,Kings Cross,Martin Place,Town Hall,Central"
-Hornsby-Epping,,16,"Hornsby,Normanhurst,Thornleigh,Pennant Hills,Beecroft,Cheltenham,Epping"
-Epping-Rhodes,,11,"Epping,Eastwood,Denistone,West Ryde,Meadowbank,Rhodes"
-Epping-Rhodes,Fast,7,"Epping,Eastwood,Rhodes"
-Rhodes-Strathfield,,7,"Rhodes,Concord West,North Strathfield,Strathfield"
-Rhodes-Strathfield,Fast,5,"Rhodes,Strathfield"
-Epping-Strathfield,Fast,9,"Epping,Strathfield"
-Tallawong-Chatswood,,36,"Tallawong,Rouse Hill,Kellyville,Bella Vista,Norwest,Hills Showground,Castle Hill,Cherrybrook,Epping,Macquarie University,Macquarie Park,North Ryde,Chatswood"
-Emu Plains-Mount Druitt,,15,"Emu Plains,Penrith,Kingswood,Werrington,St Mary's,Mount Druitt"
-Mount Druitt-Blacktown,,10,"Mount Druitt,Rooty Hill,Doonside,Blacktown"
-Mount Druitt-Blacktown,Fast,8,"Mount Druitt,Blacktown"
-Richmond-Schofields,,20,"Richmond,Claredon,Windsor,Mulgrave,Vineyard,Riverstone,Schofields"
-Schofields-Blacktown,,9,"Schofields,Quakers Hill,Marayong,Blacktown"
-Blacktown-Parramatta,,17,"Blacktown,Seven Hills,Toongabbie,Pendle Hill,Wentworthville,Westmead,Parramatta"
-Blacktown-Parramatta,Fast,9,"Blacktown,Parramatta"
-Westmead-Parramatta,,3,"Westmead,Parramatta"
-Parramatta-Granville,,5,"Parramatta,Harris Park,Granville"
-Parramatta-Granville,Fast,4,"Parramatta,Granville"
-Parramatta-Strathfield,Fast,12,"Parramatta,Strathfield"
-Parramatta-Strathfield,Semi-Fast,15,"Parramatta,Granville,Auburn,Lidcombe,Strathfield"
-Granville-Auburn,,4,"Granville,Clyde,Auburn"
-Granville-Auburn,Fast,3,"Granville,Auburn"
-Auburn-Lidcombe,,3,"Auburn,Lidcombe"
-Lidcombe-Strathfield,,7,"Lidcombe,Flemington,Homebush,Strathfield"
-Lidcombe-Strathfield,Fast,5,"Lidcombe,Strathfield"
-Flemington-Strathfield,,4,"Flemington,Homebush,Strathfield"
-Strathfield-Central,Super Fast,12,"Strathfield,Central"
-Strathfield-Central,Fast,13,"Strathfield,Redfern,Central"
-Strathfield-Central,Fast2,15,"Strathfield,Burwood,Redfern,Central"
-Strathfield-Central,Semi-Fast,19,"Strathfield,Burwood,Ashfield,Newtown,Redfern,Central"
-Strathfield-Central,,25,"Strathfield,Burwood,Croydon,Ashfield,Summer Hill,Lewisham,Petersham,Stanmore,Newtown,Macdonaldtown,Redfern,Central"
-Sydenham-Central,,10,"Sydenham,St Peters,Erskineville,Redfern,Central"
-Sydenham-Central,Fast,8,"Sydenham,Redfern,Central"
-Wolli Creek-Central,Fast,10,"Wolli Creek,Redfern,Central"
-Wolli Creek-Sydenham,,4,"Wolli Creek,Tempe,Sydenham"
-Wolli Creek-Sydenham,Fast,3,"Wolli Creek,Sydenham"
-Wolli Creek-Central,Airport-Fast,11,"Wolli Creek,International,Domestic,Central"
-Wolli Creek-Central,Airport,13,"Wolli Creek,International,Domestic,Green Square,Mascot,Central"
-Kogarah-Wolli Creek,Fast,5,"Kogarah,Wolli Creek"
-Kogarah-Wolli Creek,Semi-Fast,6,"Kogarah,Rockdale,Wolli Creek"
-Kogarah-Wolli Creek,,8,"Kogarah,Rockdale,Banksia,Arncliffe,Wolli Creek"
-Hurstville-Kogarah,Fast,4,"Hurstville,Kogarah"
-Hurstville-Kogarah,,6,"Hurstville,Allawah,Carlton,Kogarah"
-Mortdale-Hurstville,,5,"Mortdale,Penshurst,Hurstville"
-Sutherland-Hurstville,,16,"Sutherland,Jannali,Como,Oatley,Mortdale,Penshurst,Hurstville"
-Sutherland-Hurstville,Fast,10,"Sutherland,Hurstville"
-Sutherland-Hurstville,Semi-Fast,15,"Sutherland,Jannali,Como,Oatley,Mortdale,Hurstville"
-Cronulla-Sutherland,,15,"Cronulla,Woolooware,Caringbah,Miranda,Gymea,Kirrawee,Sutherland"
-Waterfall-Sutherland,,14,"Waterfall,Heathcote,Engadine,Loftus,Sutherland"
-Campsie-Sydenham,,11,"Campsie,Canterbury,Hurlstone Park,Dulwich Hill,Marrickville,Sydenham"
-Campsie-Sydenham,Semi-Fast,9,"Campsie,Marrickville,Sydenham"
-Campsie-Sydenham,Fast,8,"Campsie,Sydenham"
-Bankstown-Campsie,,12,"Bankstown,Punchbowl,Wiley Park,Lakemba,Belmore,Campsie"
-Bankstown-Campsie,Fast,8,"Bankstown,Campsie"
-Sefton-Bankstown,,9,"Sefton,Birrong,Yagoona,Bankstown"
-Sefton-Lidcombe,,8,"Sefton,Regents Park,Berala,Lidcombe"
-Sefton-Lidcombe,Fast,6,Sefton-Lidcombe
-Cabramatta-Sefton,,10,"Cabramatta,Carramar,Villawood,Leightonfield,Chester Hill,Sefton"
-Cabramatta-Sefton,Fast,7,"Cabramatta,Sefton"
-Merrylands-Granville,,4,"Merrylands,Granville"
-Merrylands-Parramatta,,6,"Merrylands,Harris Park,Parramatta"
-Cabramatta-Merrylands,,13,"Cabramatta,Canley Vale,Fairfield,Yennora,Guildford,Merrylands"
-Liverpool-Cabramatta,,5,"Liverpool,Warwick Farm,Cabramatta"
-Glenfield-Liverpool,,8,"Glenfield,Casula,Liverpool"
-Leppington-Glenfield,,9,"Leppington,Edmondson Park,Glenfield"
-Macarthur-Glenfield,,18,"Macarthur,Campbelltown,Leumeah,Minto,Ingleburn,Macquarie Fields,Glenfield"
-Glenfield-Revesby,Fast,8,"Glenfield,Revesby"
-Glenfield-Revesby,,12,"Glenfield,Holsworthy,East Hills,Panania,Revesby"
-Revesby-Kingsgrove,Fast,8,"Revesby,Kingsgrove"
-Revesby-Kingsgrove,,13,"Revesby,Padstow,Riverwood,Narwee,Beverly Hills,Kingsgrove"
-Kingsgrove-Wolli Creek,Fast,5,"Kingsgrove,Wolli Creek"
-Kingsgrove-Wolli Creek,,8,"Kingsgrove,Bexley North,Bardwell Park,Turrella,Wolli Creek"
-Glenfield-Wolli Creek,Semi-Fast,21,"Glenfield,Revesby,Kingsgrove,Wolli Creek"
-Lidcombe-Olympic Park,,5,"Lidcombe,Olympic Park"
+Route,Modifier,Schedule,,
+Berowra-Hornsby,,"Berowra,Mt Ku-Ring Gai,Mount Colah,Asquith,Hornsby",,
+Hornsby-Gordon,,"Hornsby,Waitara,Wahroonga,Warrawee,Turramurra,Pymble,Gordon",,
+Gordon-Chatswood,,"Gordon,Killara,Lindfield,Roseville,Chatswood",,
+Gordon-Chatswood,Fast,"Gordon,Chatswood",,
+Lindfield-Chatswood,,"Lindfield,Roseville,Chatswood",,
+Chatswood-North Sydney,,"Chatswood,Atarmon,St Leonards,Wollstonecraft,Waverton,North Sydney",,
+Chatswood-North Sydney,Fast,"Chatswood,St Leonards,North Sydney",,
+North Sydney-Wynyard,,"North Sydney,Milsons Point,Wynyard",,
+Wynyard-Central,,"Wynyard,Town Hall,Central",,
+Central-Wynyard,Circle,"Central,Museum,St James,Circular Quay,Wynyard",,
+Bondi Junction-Central,,"Bondi Junction,Edgecliff,Kings Cross,Martin Place,Town Hall,Central",,St James
+Hornsby-Epping,,"Hornsby,Normanhurst,Thornleigh,Pennant Hills,Beecroft,Cheltenham,Epping",,Museum
+Epping-Rhodes,,"Epping,Eastwood,Denistone,West Ryde,Meadowbank,Rhodes",,
+Epping-Rhodes,Fast,"Epping,Eastwood,Rhodes",,
+Rhodes-Strathfield,,"Rhodes,Concord West,North Strathfield,Strathfield",,
+Rhodes-Strathfield,Fast,"Rhodes,Strathfield",,
+Epping-Strathfield,Fast,"Epping,Strathfield",,
+Tallawong-Chatswood,,"Tallawong,Rouse Hill,Kellyville,Bella Vista,Norwest,Hills Showground,Castle Hill,Cherrybrook,Epping,Macquarie University,Macquarie Park,North Ryde,Chatswood",,
+Emu Plains-Mount Druitt,,"Emu Plains,Penrith,Kingswood,Werrington,St Mary's,Mount Druitt",,
+Mount Druitt-Blacktown,,"Mount Druitt,Rooty Hill,Doonside,Blacktown",,
+Mount Druitt-Blacktown,Fast,"Mount Druitt,Blacktown",,
+Richmond-Schofields,,"Richmond,Claredon,Windsor,Mulgrave,Vineyard,Riverstone,Schofields",,
+Schofields-Blacktown,,"Schofields,Quakers Hill,Marayong,Blacktown",,
+Blacktown-Parramatta,,"Blacktown,Seven Hills,Toongabbie,Pendle Hill,Wentworthville,Westmead,Parramatta",,
+Blacktown-Parramatta,Fast,"Blacktown,Parramatta",,
+Westmead-Parramatta,,"Westmead,Parramatta",,
+Parramatta-Granville,,"Parramatta,Harris Park,Granville",,
+Parramatta-Granville,Fast,"Parramatta,Granville",,
+Parramatta-Strathfield,Fast,"Parramatta,Strathfield",,
+Parramatta-Strathfield,Semi-Fast,"Parramatta,Granville,Auburn,Lidcombe,Strathfield",,
+Granville-Auburn,,"Granville,Clyde,Auburn",,
+Granville-Auburn,Fast,"Granville,Auburn",,
+Auburn-Lidcombe,,"Auburn,Lidcombe",,
+Lidcombe-Strathfield,,"Lidcombe,Flemington,Homebush,Strathfield",,
+Lidcombe-Strathfield,Fast,"Lidcombe,Strathfield",,
+Flemington-Strathfield,,"Flemington,Homebush,Strathfield",,
+Strathfield-Central,Super Fast,"Strathfield,Central",,
+Strathfield-Central,Fast,"Strathfield,Redfern,Central",,
+Strathfield-Central,Fast2,"Strathfield,Burwood,Redfern,Central",,
+Strathfield-Central,Semi-Fast,"Strathfield,Burwood,Ashfield,Newtown,Redfern,Central",,
+Strathfield-Central,,"Strathfield,Burwood,Croydon,Ashfield,Summer Hill,Lewisham,Petersham,Stanmore,Newtown,Macdonaldtown,Redfern,Central",,
+Sydenham-Central,,"Sydenham,St Peters,Erskineville,Redfern,Central",,
+Sydenham-Central,Fast,"Sydenham,Redfern,Central",,
+Wolli Creek-Central,Fast,"Wolli Creek,Redfern,Central",,
+Wolli Creek-Sydenham,,"Wolli Creek,Tempe,Sydenham",,
+Wolli Creek-Sydenham,Fast,"Wolli Creek,Sydenham",,
+Wolli Creek-Central,Airport-Fast,"Wolli Creek,International,Domestic,Central",,
+Wolli Creek-Central,Airport,"Wolli Creek,International,Domestic,Green Square,Mascot,Central",,
+Kogarah-Wolli Creek,Fast,"Kogarah,Wolli Creek",,
+Kogarah-Wolli Creek,Semi-Fast,"Kogarah,Rockdale,Wolli Creek",,
+Kogarah-Wolli Creek,,"Kogarah,Rockdale,Banksia,Arncliffe,Wolli Creek",,
+Hurstville-Kogarah,Fast,"Hurstville,Kogarah",,
+Hurstville-Kogarah,,"Hurstville,Allawah,Carlton,Kogarah",,
+Mortdale-Hurstville,,"Mortdale,Penshurst,Hurstville",,
+Sutherland-Hurstville,,"Sutherland,Jannali,Como,Oatley,Mortdale,Penshurst,Hurstville",,
+Sutherland-Hurstville,Fast,"Sutherland,Hurstville",,
+Sutherland-Hurstville,Semi-Fast,"Sutherland,Jannali,Como,Oatley,Mortdale,Hurstville",,
+Cronulla-Sutherland,,"Cronulla,Woolooware,Caringbah,Miranda,Gymea,Kirrawee,Sutherland",,
+Waterfall-Sutherland,,"Waterfall,Heathcote,Engadine,Loftus,Sutherland",,
+Campsie-Sydenham,,"Campsie,Canterbury,Hurlstone Park,Dulwich Hill,Marrickville,Sydenham",,
+Campsie-Sydenham,Semi-Fast,"Campsie,Marrickville,Sydenham",,
+Campsie-Sydenham,Fast,"Campsie,Sydenham",,
+Bankstown-Campsie,,"Bankstown,Punchbowl,Wiley Park,Lakemba,Belmore,Campsie",,
+Bankstown-Campsie,Fast,"Bankstown,Campsie",,
+Sefton-Bankstown,,"Sefton,Birrong,Yagoona,Bankstown",,
+Sefton-Lidcombe,,"Sefton,Regents Park,Berala,Lidcombe",,
+Sefton-Lidcombe,Fast,Sefton-Lidcombe,,
+Cabramatta-Sefton,,"Cabramatta,Carramar,Villawood,Leightonfield,Chester Hill,Sefton",,
+Cabramatta-Sefton,Fast,"Cabramatta,Sefton",,
+Merrylands-Granville,,"Merrylands,Granville",,
+Merrylands-Parramatta,,"Merrylands,Harris Park,Parramatta",,
+Cabramatta-Merrylands,,"Cabramatta,Canley Vale,Fairfield,Yennora,Guildford,Merrylands",,
+Liverpool-Cabramatta,,"Liverpool,Warwick Farm,Cabramatta",,
+Glenfield-Liverpool,,"Glenfield,Casula,Liverpool",,
+Leppington-Glenfield,,"Leppington,Edmondson Park,Glenfield",,
+Macarthur-Glenfield,,"Macarthur,Campbelltown,Leumeah,Minto,Ingleburn,Macquarie Fields,Glenfield",,
+Glenfield-Revesby,Fast,"Glenfield,Revesby",,
+Glenfield-Revesby,,"Glenfield,Holsworthy,East Hills,Panania,Revesby",,
+Revesby-Kingsgrove,Fast,"Revesby,Kingsgrove",,
+Revesby-Kingsgrove,,"Revesby,Padstow,Riverwood,Narwee,Beverly Hills,Kingsgrove",,
+Kingsgrove-Wolli Creek,Fast,"Kingsgrove,Wolli Creek",,
+Kingsgrove-Wolli Creek,,"Kingsgrove,Bexley North,Bardwell Park,Turrella,Wolli Creek",,
+Glenfield-Wolli Creek,Semi-Fast,"Glenfield,Revesby,Kingsgrove,Wolli Creek",,
+Lidcombe-Olympic Park,,"Lidcombe,Olympic Park",,
