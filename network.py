@@ -16,8 +16,9 @@ import agent as a
 #we will be using one second increments for time
 class Edge:
     #initialise the node
-    def __init__(self,name,start_node,end_node,travel_time):
+    def __init__(self,name,id,start_node,end_node,travel_time):
         self.name = name
+        self.id = id #position in the list of all edges
         self.start_node = start_node
         self.end_node = end_node
         self.travel_time = travel_time
@@ -268,7 +269,7 @@ class Network:
         print('optimiser ',optimiser)
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
-        self.edges = [] #list of edges 
+        self.edges = {} #list of edges, key is name, value is edge object 
         self.nodes = [] #list of nodes
         self.edge_names = [] #list of generated edge names
         self.optimiser = optimiser #optimisers we can use, options are "hardcoded", the set frequency from the schedule and "henryconvex", my own custom convex optimisation function 
@@ -288,14 +289,17 @@ class Network:
         self.edge_bidirectional = edges_csv["Bidirectional"].to_list()
         #and let's create the edges
         num_edges = len(self.edge_starts)
+        id = 0
         for i in range(num_edges):
             if (self.edge_bidirectional[i]=='Yes'):#if input edge is two-way
                 #create two edges, one "UP" (by convention towards central), one "DOWN", (away from central)
-                self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i])#UP
-                self.add_edge(self.edge_ends[i],self.edge_starts[i],self.edge_times[i])#DOWN
+                self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i],id)#UP
+                self.add_edge(self.edge_ends[i],self.edge_starts[i],self.edge_times[i],id+1)#DOWN
+                id = id + 2
             else:
                 #if input edge is one way
-                self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i])#UP
+                self.add_edge(self.edge_starts[i],self.edge_ends[i],self.edge_times[i],id)#UP
+                id = id + 1
 
         #extract parameter data
         self.vehicle_max_seated = parameters_csv["Vehicle Max Seated"].to_list()[0] #maximum number who can sit inside a vehicle
@@ -815,7 +819,7 @@ class Network:
                 node_counter += 1 #we will now be processing the next node
             else:
                 edge_name = previous_node_name + ' to ' + node_name #calculate the name of the edge between these two nodes
-                edge = self.edges[self.get_edge_index(edge_name)]
+                edge = self.edges[edge_name]
                 edge_time = edge.provide_travel_time()
                 new_schedule.add_destination(node,edge,node_name)
                 node_arrival_times[node_counter] = node_arrival_times[node_counter-1] + edge_time
@@ -840,15 +844,14 @@ class Network:
                     self.nodes[i].add_stopping_schedule(self.schedule_names[j],self.dispatch_schedule2[j],search_node_time,nodes_after,node_times_after)
 
     #add an edge between specified start and end node            
-    def add_edge(self,start_node,end_node,travel_time):
+    def add_edge(self,start_node,end_node,travel_time,id):
         name = start_node + ' to ' + end_node
         while name in self.edge_names:#prevent duplicate names
             #note, that duplicate edge names cause problems with the creation of schedules, so try and avoid them
             warnings.warn('duplicate edge name ', name, ' this is poorly supported, try and only have one edge directly between two nodes')
             name = name + ' alt '
-        self.edge_names.append(name)#update the list of edge names
-        new_edge = Edge(name,start_node,end_node,travel_time)
-        self.edges.append(new_edge)#and create the new edge
+        new_edge = Edge(name,id,start_node,end_node,travel_time)
+        self.edges[name] = new_edge#and create the new edge
         #let's also add the edge to the list of edges at the node it starts from
         i = 0 #temporary counter variable
         for node_name in self.node_names:
@@ -975,7 +978,7 @@ class Network:
     #find the expected traffic along each edge in each direction
     def find_expected_edge_traffic(self):
         #create the array 
-        num_edges = len(self.edge_names)
+        num_edges = len(self.edges)
         self.edge_traffic = np.zeros(num_edges)
         #go through all the shortest path between node_pairs
         for outer_index,paths in enumerate(self.paths_to_all):
@@ -1008,7 +1011,7 @@ class Network:
     def get_edge_index(self,edge_name):
         #try and find the starting node in the list of all nodes
         try:
-            index = self.edge_names.index(edge_name)
+            index = self.edges[edge_name].id
             return index
         except ValueError:
             #handle case where starting name not in list of names
@@ -1017,8 +1020,7 @@ class Network:
 
     #get the time taken to traverse a node
     def get_edge_time(self,edge_name):
-        index = self.get_edge_index(edge_name)
-        time_taken = self.edges[index].provide_travel_time()
+        time_taken = self.edges[edge_name].provide_travel_time()
         return time_taken
 
     #get the traffic through a node
