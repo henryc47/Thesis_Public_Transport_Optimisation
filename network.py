@@ -197,7 +197,7 @@ class Node:
                     times_after = start_node_times_after
                     schedule_names = start_schedule_names
                 else: #otherwise, extract data about the evaluation node at the evaluation time
-                    next_service_times,nodes_after,times_after,schedule_names = self.network.nodes[min_index].provide_next_services(start=False,data_time=current_time)
+                    next_service_times,nodes_after,times_after,schedule_names = self.network.nodes[self.network.node_names[min_index]].provide_next_services(start=False,data_time=current_time)
 
 
             #now it's time to calculate the path to other nodes
@@ -270,7 +270,7 @@ class Network:
         self.verbose = verbose #import verbosity
         #where we will store edges and nodes
         self.edges = {} #list of edges, key is name, value is edge object 
-        self.nodes = [] #list of nodes
+        self.nodes = {} #list of nodes
         self.edge_names = [] #list of generated edge names
         self.optimiser = optimiser #optimisers we can use, options are "hardcoded", the set frequency from the schedule and "henryconvex", my own custom convex optimisation function 
         #extract the raw data
@@ -280,7 +280,7 @@ class Network:
         #and let's create the nodes
         num_nodes = len(self.node_names)
         for i in range(num_nodes):
-            self.nodes.append(Node(self.node_names[i],node_positions[i],i,self)) #nodes id is it's position in the array
+            self.nodes[self.node_names[i]] = Node(self.node_names[i],node_positions[i],i,self) #nodes id is it's position in the dict
 
         #extract edge data
         self.edge_starts = edges_csv["Start"].to_list()
@@ -457,11 +457,11 @@ class Network:
     def create_all_passengers_pathfinding(self):
         num_nodes = len(self.node_names)
         for i in range(num_nodes): #go through all the nodes we are starting from
-            start_node = self.nodes[i] #extract a reference to the starting node
+            start_node = self.nodes[self.node_names[i]] #extract a reference to the starting node
             num_passengers_to_node = np.zeros(num_nodes)
             #calculate the number of passengers going to each node
             for j in range(num_nodes):
-                end_node = self.nodes[j] #extract a reference to that node
+                end_node = self.nodes[self.node_names[j]] #extract a reference to that node
                 num_passengers_pair = self.origin_destination_trips[i,j] #extract number of passengers going between these node pairs
                 num_passengers_per_min = (num_passengers_pair/60)*self.passenger_time_multiplier #we create passengers every minute, but statistics are per hour
                 #create the required number of passengers
@@ -477,7 +477,7 @@ class Network:
             for j in range(num_nodes): #go through all the nodes we are ending up at
                 num_passengers = num_passengers_created[j]
                 if num_passengers>0:
-                    end_node = self.nodes[j]
+                    end_node = self.nodes[self.node_names[j]]
                     path = copy.deepcopy(path_to_nodes[j])
                     new_agent = a.Agent(start_node,end_node,self.agent_id_counter,self.time,self,num_passengers,path) #create the new passenger
                     self.agents.append(new_agent) #create the new passengers and add to the list
@@ -527,11 +527,11 @@ class Network:
 
     #update when the next vehicle in each schedule will arrive at each node
     def update_nodes_next_vehicle(self):
-        for node in self.nodes:
+        for node_name in self.nodes:
             #determine when the next service of each schedule will arrive
-            node.self_time_till_next_vehicles(self.time)
+            self.nodes[node_name].self_time_till_next_vehicles(self.time)
             #remove services which have already arrived
-            node.remove_arrived_vehicles(self.time)
+            self.nodes[node_name].remove_arrived_vehicles(self.time)
 
 
     #passengers alight from vehicles which have stopped
@@ -678,8 +678,8 @@ class Network:
     #get relevant data about all nodes in the network at the present time and store them in lists
     def get_node_data_at_time(self):
         current_node_passenger_counts = []
-        for node in self.nodes:
-            current_node_passenger_counts.append(node.count_agents())
+        for node_name in self.nodes:
+            current_node_passenger_counts.append(self.nodes[node_name].count_agents())
         self.node_passengers.append(current_node_passenger_counts)
                    
     #call the correct schedule generation code based on the mode we are using
@@ -811,7 +811,7 @@ class Network:
         #add nodes and edges to the schedule
         for node_name in node_names:
             #when processing the starting node, we just add the node to the schedule
-            node = self.nodes[self.get_node_index(node_name)]
+            node = self.nodes[node_name]
             if previous_node_name == "":
                 new_schedule.add_start_node(node,node_name)
                 previous_node = node
@@ -841,7 +841,7 @@ class Network:
                 node_found,search_node_time,nodes_after,node_times_after = schedule.node_name_in_schedule(node_name)
                 if node_found == True:
                     #if we found the node in a schedule, add that schedule to the list of schedules stopping at that node
-                    self.nodes[i].add_stopping_schedule(self.schedule_names[j],self.dispatch_schedule2[j],search_node_time,nodes_after,node_times_after)
+                    self.nodes[node_name].add_stopping_schedule(self.schedule_names[j],self.dispatch_schedule2[j],search_node_time,nodes_after,node_times_after)
 
     #add an edge between specified start and end node            
     def add_edge(self,start_node,end_node,travel_time,id):
@@ -857,7 +857,7 @@ class Network:
         for node_name in self.node_names:
             if node_name == start_node:#if node names matches with the starting node
                 #add edge to the node
-                self.nodes[i].add_edge(new_edge)
+                self.nodes[node_name].add_edge(new_edge)
             else:
                 pass
             i = i+1 
@@ -925,7 +925,7 @@ class Network:
             if min_distance == np.inf: #if all nodes are either visited or have an infinite known cost to reach, we have explored the network as much as possible
                 break#hence break
             min_index = distance_to_use.tolist().index(min_distance)#get the index of the first minimum value
-            (edge_times,edge_destinations,edge_names) = self.nodes[min_index].provide_nodes_time_edge_name()
+            (edge_times,edge_destinations,edge_names) = self.nodes[self.node_names[min_index]].provide_nodes_time_edge_name()
             num_edges = len(edge_times)
             for i in range(num_edges):
                 try:
@@ -1000,7 +1000,7 @@ class Network:
     def get_node_index(self,node_name):
         #try and find the starting node in the list of all nodes
         try:
-            index = self.node_names.index(node_name)
+            index = self.nodes[node_name].id
             return index
         except ValueError:
             #handle case where starting name not in list of names
